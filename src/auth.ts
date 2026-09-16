@@ -12,6 +12,15 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+const isProduction = process.env.NODE_ENV === "production";
+const authSecret =
+  process.env.AUTH_SECRET ??
+  (isProduction ? undefined : process.env.AUTH_SECRET_DEV);
+
+if (isProduction && !authSecret) {
+  throw new Error("AUTH_SECRET is required in production.");
+}
+
 const providers: Provider[] = [
   Credentials({
     credentials: {
@@ -58,9 +67,17 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: authSecret,
   providers,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  cookies: isProduction
+    ? undefined
+    : {
+        sessionToken: {
+          name: "budgethack.dev.session-token.v1",
+        },
+      },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

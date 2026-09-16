@@ -44,6 +44,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+`npm run dev` creates a cryptographically random `AUTH_SECRET_DEV` in the
+ignored `.env.local` file if no local secret is configured. It is reused across
+restarts, so local JWT sessions remain valid. Production never reads this
+development fallback: set an explicit, securely generated `AUTH_SECRET` in the
+deployment environment.
+
 The seed creates these local demo accounts:
 
 | Role | Email | Password |
@@ -112,6 +118,13 @@ Generate `AUTH_SECRET` with:
 ```bash
 openssl rand -base64 32
 ```
+
+Changing `AUTH_SECRET` intentionally invalidates every existing session. Users
+must sign in again. Development uses a versioned, development-only session
+cookie name, so stale Auth.js cookies created by older local configurations do
+not cause JWT decryption errors. If a secret is changed again, clear the
+`budgethack.dev.session-token.v1` cookie (or all localhost cookies) before
+continuing.
 
 ## Google login
 
