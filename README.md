@@ -61,6 +61,28 @@ The seed creates these local demo accounts:
 | Director | `director@example.com` | `DemoDirector123!` |
 | Organizer | `plain-organizer@example.com` | `DemoOrganizer123!` |
 
+## View the database
+
+This project uses a local SQLite database at `prisma/dev.db`.
+
+Open Prisma Studio (GUI):
+
+```bash
+npx prisma studio
+```
+
+Then open the URL shown in the terminal (usually `http://localhost:5555`).
+
+Or inspect it with the SQLite CLI (if `sqlite3` is installed):
+
+```bash
+sqlite3 prisma/dev.db
+.tables
+SELECT * FROM TravelReimbursement LIMIT 10;
+```
+
+Exit SQLite with `.quit`.
+
 ## Travel reimbursement workflow
 
 Each hacker can have one reimbursement request. The request records origin,

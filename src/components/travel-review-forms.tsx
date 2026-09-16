@@ -13,9 +13,11 @@ const initialState: TravelReviewState = {};
 export function TravelReviewForm({
   reimbursementId,
   submittedTotal,
+  currencyCode,
 }: {
   reimbursementId: string;
   submittedTotal: string;
+  currencyCode: string;
 }) {
   const action = reviewTravelRequest.bind(null, reimbursementId);
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -24,7 +26,7 @@ export function TravelReviewForm({
     <form action={formAction} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="field">
-          <span>Approved reimbursement (EUR)</span>
+          <span>Approved reimbursement ({currencyCode})</span>
           <input
             name="approvedAmount"
             type="number"

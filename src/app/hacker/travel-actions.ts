@@ -57,8 +57,29 @@ const travelSchema = z.object({
     .number()
     .positive("Total travel price must be greater than zero.")
     .max(1_000_000, "Total travel price is too large."),
+  totalCurrency: z.string().trim().min(3, "Select a valid currency."),
   luggagePaid: z.string().optional(),
   luggagePrice: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.transportMode !== "AIRPLANE") {
+    return;
+  }
+
+  if (!data.outboundServiceNumber?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["outboundServiceNumber"],
+      message: "Enter the outbound flight number.",
+    });
+  }
+
+  if (!data.returnServiceNumber?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["returnServiceNumber"],
+      message: "Enter the return flight number.",
+    });
+  }
 });
 
 const ticketTypes: Record<string, string> = {
@@ -167,6 +188,21 @@ export async function saveTravelRequest(
     return { error: "Enter valid dates and times for every journey." };
   }
 
+  const currencyMatch = /^([A-Z]{3})\b/.exec(parsed.data.totalCurrency.trim());
+  const totalCurrencyCode = currencyMatch?.[1];
+
+  if (!totalCurrencyCode) {
+    return { error: "Select a valid currency." };
+  }
+  try {
+    new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: totalCurrencyCode,
+    }).format(0);
+  } catch {
+    return { error: "Select a valid currency." };
+  }
+
   const outboundDepartureAt = dates.outboundDepartureAt!;
   const outboundArrivalAt = dates.outboundArrivalAt!;
   const returnDepartureAt = dates.returnDepartureAt!;
@@ -249,6 +285,7 @@ export async function saveTravelRequest(
     returnCarrier: parsed.data.returnCarrier,
     returnServiceNumber: parsed.data.returnServiceNumber || null,
     totalPriceCents: Math.round(parsed.data.totalPrice * 100),
+    totalCurrencyCode,
     luggagePaid,
     luggagePriceCents: luggagePaid ? Math.round(luggagePrice * 100) : null,
     ticketPath,
