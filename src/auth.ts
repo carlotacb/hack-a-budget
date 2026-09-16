@@ -82,7 +82,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (
         token.sub &&
-        (token.role === "HACKER" || token.role === "ORGANIZER")
+        (token.role === "HACKER" ||
+          token.role === "ORGANIZER" ||
+          token.role === "DIRECTOR" ||
+          token.role === "ADMIN")
       ) {
         session.user.id = token.sub;
         session.user.role = token.role;

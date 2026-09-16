@@ -4,8 +4,22 @@ A full-stack Next.js starter for hackathons. New users always register as
 **hackers**:
 
 - Hackers land in a simple welcome workspace.
-- Organizers get a protected expense dashboard and a separate access-management
-  screen where they can promote hackers to organizer access.
+- Admins have full access to organizer tools and can assign Hacker, Organizer,
+  Director, or Admin roles to other users after confirmation. Admins cannot
+  change their own role.
+- Directors can use the organizer dashboard, expense list, budget, and travel
+  pages. Organizers can use the organizer dashboard and expense list. Hackers
+  only use the hacker workspace.
+- Organizer tools are split into dashboard, budget, expense list, new expense,
+  travel reimbursements, users, and metadata pages, with navigation filtered by
+  role.
+- Budgets can be allocated by editable categories and subcategories. The
+  dashboard reports total utilization, category utilization, and department
+  spend share.
+- Expenses include description, category/subcategory, amount, DD/MM/YYYY date,
+  vendor, department, and an optional locally stored PDF or image ticket.
+- Categories, subcategories, and departments can be added, renamed, activated,
+  or deactivated from the metadata screen.
 - Registration collects complete name, email, password, gender, city, and
   major. Passwords are stored only as secure hashes.
 - Signed-in users can update their own name, gender, city, and major from the
@@ -33,7 +47,7 @@ The seed creates these local demo accounts:
 | Role | Email | Password |
 | --- | --- | --- |
 | Hacker | `hacker@example.com` | `DemoHacker123!` |
-| Organizer | `organizer@example.com` | `DemoOrganizer123!` |
+| Admin | `organizer@example.com` | `DemoOrganizer123!` |
 
 Generate `AUTH_SECRET` with:
 

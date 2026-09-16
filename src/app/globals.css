@@ -114,6 +114,28 @@ button:disabled {
   color: #6d28d9;
 }
 
+.secondary-button.role-revoke-button {
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+.secondary-button.role-revoke-button:hover {
+  border-color: #f87171 !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.secondary-button.role-admin-button {
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+}
+
+.secondary-button.role-admin-button:hover {
+  border-color: #60a5fa !important;
+  background: #eff6ff !important;
+  color: #1e40af !important;
+}
+
 .eyebrow {
   font-size: 0.7rem;
   font-weight: 750;
@@ -310,16 +332,64 @@ button:disabled {
 .role-badge {
   display: inline-flex;
   border-radius: 9999px;
-  background: #f1f5f9;
+  background: #a6c2eb;
   padding: 0.35rem 0.7rem;
   font-size: 0.75rem;
   font-weight: 650;
-  color: #475569;
+  color: #105ecb;
 }
 
 .role-badge-organizer {
   background: #f3e8ff;
   color: #7e22ce;
+}
+
+.role-badge-director {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.role-badge-admin {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.role-select {
+  height: 2.25rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.65rem;
+  background: white;
+  padding: 0 2rem 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.role-select:focus {
+  border-color: #8b5cf6;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+
+.organizer-nav-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.45rem;
+  border-bottom: 2px solid transparent;
+  padding: 0.9rem 0.85rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.organizer-nav-link:hover {
+  color: #6d28d9;
+}
+
+.organizer-nav-link-active {
+  border-color: #7c3aed;
+  color: #6d28d9;
 }
 
 .empty-state {
