@@ -1,7 +1,7 @@
 "use client";
 
 import type { Gender } from "@prisma/client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   type ProfileFormState,
   updateProfile,
@@ -24,6 +24,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
     updateProfile,
     initialState,
   );
+  const [name, setName] = useState(user.name ?? "");
+  const [city, setCity] = useState(user.city ?? "");
+  const [major, setMajor] = useState(user.major ?? "");
 
   return (
     <form action={formAction} className="space-y-5">
@@ -33,27 +36,33 @@ export function ProfileForm({ user }: ProfileFormProps) {
           name="name"
           type="text"
           autoComplete="name"
-          defaultValue={user.name ?? ""}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
           required
         />
       </label>
 
-      <label className="field">
+      <div className="field">
         <span>Email</span>
-        <input
-          type="email"
-          value={user.email}
-          disabled
+        <p
+          className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-600"
           aria-describedby="email-help"
-        />
+        >
+          {user.email}
+        </p>
         <small id="email-help" className="text-xs text-slate-500">
           Email cannot be changed from your profile.
         </small>
-      </label>
+      </div>
 
       <label className="field">
         <span>Gender</span>
-        <select name="gender" defaultValue={user.gender ?? ""} required>
+        <select
+          key={user.gender}
+          name="gender"
+          defaultValue={user.gender ?? ""}
+          required
+        >
           <option value="" disabled>
             Select your gender
           </option>
@@ -71,7 +80,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
             name="city"
             type="text"
             autoComplete="address-level2"
-            defaultValue={user.city ?? ""}
+            value={city}
+            onChange={(event) => setCity(event.target.value)}
             required
           />
         </label>
@@ -80,7 +90,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <input
             name="major"
             type="text"
-            defaultValue={user.major ?? ""}
+            value={major}
+            onChange={(event) => setMajor(event.target.value)}
             required
           />
         </label>

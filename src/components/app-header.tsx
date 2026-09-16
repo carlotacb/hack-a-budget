@@ -7,7 +7,7 @@ import { UserRound } from "lucide-react";
 
 type AppHeaderProps = {
   name?: string | null;
-  role: "Hacker" | "Organizer";
+  role: "Hacker" | "Organizer" | "Director" | "Admin";
 };
 
 export function AppHeader({ name, role }: AppHeaderProps) {

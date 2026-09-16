@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { dashboardForRole } from "@/lib/organizer";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -8,5 +9,5 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  redirect(session.user.role === "ORGANIZER" ? "/organizer" : "/hacker");
+  redirect(dashboardForRole(session.user.role));
 }

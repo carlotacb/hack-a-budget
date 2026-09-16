@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Code2, Rocket, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { AppHeader } from "@/components/app-header";
+import { dashboardForRole } from "@/lib/organizer";
 
 export default async function HackerPage() {
   const session = await auth();
@@ -10,7 +11,7 @@ export default async function HackerPage() {
     redirect("/login");
   }
   if (session.user.role !== "HACKER") {
-    redirect("/organizer");
+    redirect(dashboardForRole(session.user.role));
   }
 
   return (

@@ -10,6 +10,8 @@ datasource db {
 enum Role {
   HACKER
   ORGANIZER
+  DIRECTOR
+  ADMIN
 }
 
 enum Gender {
@@ -72,14 +74,60 @@ model VerificationToken {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  description String
-  category    String
-  amountCents Int
-  incurredAt  DateTime
-  organizerId String
-  organizer   User     @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id            String       @id @default(cuid())
+  description   String
+  categoryLabel String       @map("category")
+  amountCents   Int
+  incurredAt    DateTime
+  vendor        String?
+  ticketPath    String?
+  organizerId   String
+  organizer     User         @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategoryId String?
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  departmentId  String?
+  department    Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
 
   @@index([organizerId, incurredAt])
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([departmentId])
+}
+
+model Category {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  budgetCents   Int           @default(0)
+  active        Boolean       @default(true)
+  subcategories Subcategory[]
+  expenses      Expense[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Subcategory {
+  id          String    @id @default(cuid())
+  name        String
+  budgetCents Int       @default(0)
+  active      Boolean   @default(true)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([categoryId, name])
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  active    Boolean   @default(true)
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
