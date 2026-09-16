@@ -801,18 +801,83 @@ export const busCompanyOptions = [
   "Yolobus"
 ] as const;
 
-const intlWithSupportedValues = Intl as typeof Intl & {
-  supportedValuesOf?: (key: "currency") => string[];
-};
-
-const currencyCodes = (() => {
-  try {
-    const values = intlWithSupportedValues.supportedValuesOf?.("currency");
-    return values?.length ? values : ["EUR", "USD", "GBP"];
-  } catch {
-    return ["EUR", "USD", "GBP"];
-  }
-})();
+// Keep this list static so SSR and client hydration render identical options.
+const currencyCodes = [
+  "AED",
+  "ARS",
+  "AUD",
+  "BDT",
+  "BGN",
+  "BHD",
+  "BND",
+  "BOB",
+  "BRL",
+  "CAD",
+  "CHF",
+  "CLP",
+  "CNY",
+  "COP",
+  "CRC",
+  "CZK",
+  "DKK",
+  "DOP",
+  "DZD",
+  "EGP",
+  "EUR",
+  "GBP",
+  "GHS",
+  "GTQ",
+  "HKD",
+  "HNL",
+  "HRK",
+  "HUF",
+  "IDR",
+  "ILS",
+  "INR",
+  "IQD",
+  "ISK",
+  "JOD",
+  "JPY",
+  "KES",
+  "KRW",
+  "KWD",
+  "KZT",
+  "LBP",
+  "LKR",
+  "MAD",
+  "MMK",
+  "MOP",
+  "MXN",
+  "MYR",
+  "NGN",
+  "NIO",
+  "NOK",
+  "NPR",
+  "NZD",
+  "OMR",
+  "PAB",
+  "PEN",
+  "PHP",
+  "PKR",
+  "PLN",
+  "PYG",
+  "QAR",
+  "RON",
+  "RSD",
+  "RUB",
+  "SAR",
+  "SEK",
+  "SGD",
+  "THB",
+  "TND",
+  "TRY",
+  "TWD",
+  "UAH",
+  "USD",
+  "UYU",
+  "VND",
+  "ZAR",
+] as const;
 
 export function formatCurrencyOption(code: string) {
   try {
