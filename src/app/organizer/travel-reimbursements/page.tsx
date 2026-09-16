@@ -95,7 +95,10 @@ export default async function TravelReimbursementsPage({
                       {reimbursement.originCity}, {reimbursement.originCountry}
                     </td>
                     <td className="px-3 py-4 font-medium">
-                      {formatMoney(reimbursement.totalPriceCents)}
+                      {formatMoney(
+                        reimbursement.totalPriceCents,
+                        reimbursement.totalCurrencyCode,
+                      )}
                     </td>
                     <td className="px-3 py-4 text-slate-600">
                       {formatEventDateTime(reimbursement.submittedAt)}

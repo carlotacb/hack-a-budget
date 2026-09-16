@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FinalRequirementForms, TravelReviewForm } from "@/components/travel-review-forms";
+import { TicketViewerButton } from "@/components/ticket-viewer-button";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import {
@@ -81,12 +82,21 @@ export default async function TravelReimbursementDetailPage({
         <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Origin" value={`${reimbursement.originCity}, ${reimbursement.originCountry}`} />
           <Fact label="Transport" value={transportLabels[reimbursement.transportMode]} />
-          <Fact label="Travel total" value={formatMoney(reimbursement.totalPriceCents)} />
+          <Fact
+            label="Travel total"
+            value={formatMoney(
+              reimbursement.totalPriceCents,
+              reimbursement.totalCurrencyCode,
+            )}
+          />
           <Fact
             label="Luggage"
             value={
               reimbursement.luggagePaid
-                ? formatMoney(reimbursement.luggagePriceCents)
+                ? formatMoney(
+                    reimbursement.luggagePriceCents,
+                    reimbursement.totalCurrencyCode,
+                  )
                 : "Not paid separately"
             }
           />
@@ -107,14 +117,7 @@ export default async function TravelReimbursementDetailPage({
             service={reimbursement.returnServiceNumber}
           />
         </div>
-        <a
-          href={reimbursement.ticketPath}
-          target="_blank"
-          rel="noreferrer"
-          className="secondary-button mt-6"
-        >
-          Open ticket document
-        </a>
+        <TicketViewerButton ticketPath={reimbursement.ticketPath} />
       </section>
 
       {reimbursement.status === "PENDING_REVIEW" && (
@@ -123,6 +126,7 @@ export default async function TravelReimbursementDetailPage({
           <TravelReviewForm
             reimbursementId={reimbursement.id}
             submittedTotal={(reimbursement.totalPriceCents / 100).toFixed(2)}
+            currencyCode={reimbursement.totalCurrencyCode}
           />
         </section>
       )}

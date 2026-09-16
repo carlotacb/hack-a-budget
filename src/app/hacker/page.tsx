@@ -1,10 +1,11 @@
-import { Code2, Plane, Rocket, Sparkles } from "lucide-react";
+import { Plane } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { DemoProofForm } from "@/components/demo-proof-form";
 import {
   TravelReimbursementForm,
   type TravelFormValues,
 } from "@/components/travel-reimbursement-form";
+import { formatCurrencyOption } from "@/components/constants";
 import { prisma } from "@/lib/prisma";
 import {
   editableTravelStatuses,
@@ -61,6 +62,7 @@ export default async function HackerPage() {
         returnCarrier: reimbursement.returnCarrier,
         returnServiceNumber: reimbursement.returnServiceNumber ?? "",
         totalPrice: (reimbursement.totalPriceCents / 100).toFixed(2),
+        totalCurrency: formatCurrencyOption(reimbursement.totalCurrencyCode),
         luggagePaid: reimbursement.luggagePaid,
         luggagePrice: reimbursement.luggagePriceCents
           ? (reimbursement.luggagePriceCents / 100).toFixed(2)
@@ -84,6 +86,7 @@ export default async function HackerPage() {
         returnCarrier: "",
         returnServiceNumber: "",
         totalPrice: "",
+        totalCurrency: formatCurrencyOption("EUR"),
         luggagePaid: false,
         luggagePrice: "",
       };
@@ -92,37 +95,6 @@ export default async function HackerPage() {
     <div className="min-h-screen bg-[#f6f7fb]">
       <AppHeader name={user.name} role="Hacker" />
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12 lg:px-8">
-        <section className="overflow-hidden rounded-[2rem] bg-slate-950 px-8 py-12 text-white shadow-2xl shadow-violet-200 md:px-12">
-          <div className="max-w-3xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-violet-200">
-              <Sparkles size={16} aria-hidden="true" />
-              Hacker workspace
-            </div>
-            <h1 className="text-4xl font-semibold tracking-[-0.05em] sm:text-6xl">
-              Hello, {user.name?.split(" ")[0] ?? "hacker"}.
-            </h1>
-          </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            <div className="glass-panel">
-              <Code2 className="text-violet-300" aria-hidden="true" />
-              <div>
-                <p className="font-medium">Start building</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  Turn your idea into a working prototype.
-                </p>
-              </div>
-            </div>
-            <div className="glass-panel">
-              <Rocket className="text-amber-300" aria-hidden="true" />
-              <div>
-                <p className="font-medium">Ship something bold</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  Make it useful, memorable, and yours.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <section className="dashboard-card" id="travel-reimbursement">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -168,11 +140,17 @@ export default async function HackerPage() {
             <div className="mt-7 grid gap-4 sm:grid-cols-3">
               <StatusFact
                 label="Submitted total"
-                value={formatMoney(reimbursement.totalPriceCents)}
+                value={formatMoney(
+                  reimbursement.totalPriceCents,
+                  reimbursement.totalCurrencyCode,
+                )}
               />
               <StatusFact
                 label="Approved reimbursement"
-                value={formatMoney(reimbursement.approvedAmountCents)}
+                value={formatMoney(
+                  reimbursement.approvedAmountCents,
+                  reimbursement.totalCurrencyCode,
+                )}
               />
               <StatusFact
                 label="Submitted"

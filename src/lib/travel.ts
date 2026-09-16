@@ -132,13 +132,16 @@ export function formatEventDateTime(value: Date | null | undefined) {
     : "Not configured";
 }
 
-export function formatMoney(cents: number | null | undefined) {
+export function formatMoney(
+  cents: number | null | undefined,
+  currencyCode = "EUR",
+) {
   if (cents === null || cents === undefined) {
     return "Not set";
   }
 
   return new Intl.NumberFormat("en", {
     style: "currency",
-    currency: "EUR",
+    currency: currencyCode,
   }).format(cents / 100);
 }
