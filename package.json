@@ -6,7 +6,11 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "node scripts/ensure-local-auth-secret.mjs && next dev",
+    "predev": "npm run db:generate",
+    "dev": "npm run dev:start",
+    "predev:start": "node scripts/ensure-local-auth-secret.mjs",
+    "dev:start": "next dev",
+    "prebuild": "npm run db:generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
