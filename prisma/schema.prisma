@@ -21,22 +21,43 @@ enum Gender {
   PREFER_NOT_TO_SAY
 }
 
+enum TransportMode {
+  BUS
+  TRAIN
+  AIRPLANE
+}
+
+enum TravelReimbursementStatus {
+  DRAFT
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  REJECTED
+  APPROVED
+  FINAL_REVIEW
+  FINAL_APPROVED
+}
+
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String?
-  role          Role      @default(HACKER)
-  gender        Gender?
-  city          String?
-  major         String?
-  accounts      Account[]
-  sessions      Session[]
-  expenses      Expense[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                      String                   @id @default(cuid())
+  name                    String?
+  email                   String                   @unique
+  emailVerified           DateTime?
+  image                   String?
+  passwordHash            String?
+  role                    Role                     @default(HACKER)
+  gender                  Gender?
+  city                    String?
+  major                   String?
+  accounts                Account[]
+  sessions                Session[]
+  expenses                Expense[]
+  travelReimbursement     TravelReimbursement?     @relation("TravelHacker")
+  initialTravelReviews    TravelReimbursement[]    @relation("InitialTravelReviewer")
+  finalTravelReviews      TravelReimbursement[]    @relation("FinalTravelReviewer")
+  travelStatusEvents      TravelStatusEvent[]      @relation("TravelStatusActor")
+  travelRequirementChecks TravelRequirementCheck[] @relation("TravelRequirementChecker")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 }
 
 model Account {
@@ -130,4 +151,98 @@ model Department {
   expenses  Expense[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+model TravelReimbursement {
+  id                     String                    @id @default(cuid())
+  hackerId               String                    @unique
+  hacker                 User                      @relation("TravelHacker", fields: [hackerId], references: [id], onDelete: Cascade)
+  status                 TravelReimbursementStatus @default(DRAFT)
+  originCity             String
+  originCountry          String
+  transportMode          TransportMode
+  outboundDepartureAt    DateTime
+  outboundDeparturePlace String
+  outboundArrivalAt      DateTime
+  outboundArrivalPlace   String
+  outboundCarrier        String
+  outboundServiceNumber  String?
+  returnDepartureAt      DateTime
+  returnDeparturePlace   String
+  returnArrivalAt        DateTime
+  returnArrivalPlace     String
+  returnCarrier          String
+  returnServiceNumber    String?
+  totalPriceCents        Int
+  luggagePaid            Boolean                   @default(false)
+  luggagePriceCents      Int?
+  ticketPath             String
+  organizerNote          String?
+  approvedAmountCents    Int?
+  submittedAt            DateTime?
+  initialReviewedAt      DateTime?
+  initialReviewerId      String?
+  initialReviewer        User?                     @relation("InitialTravelReviewer", fields: [initialReviewerId], references: [id], onDelete: SetNull)
+  approvedAt             DateTime?
+  demoUrl                String?
+  demoComment            String?
+  demoSubmittedAt        DateTime?
+  finalReviewerId        String?
+  finalReviewer          User?                     @relation("FinalTravelReviewer", fields: [finalReviewerId], references: [id], onDelete: SetNull)
+  finalApprovedAt        DateTime?
+  statusEvents           TravelStatusEvent[]
+  requirementChecks      TravelRequirementCheck[]
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  @@index([status, submittedAt])
+  @@index([initialReviewerId])
+  @@index([finalReviewerId])
+}
+
+model TravelStatusEvent {
+  id              String                     @id @default(cuid())
+  reimbursementId String
+  reimbursement   TravelReimbursement        @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  fromStatus      TravelReimbursementStatus?
+  toStatus        TravelReimbursementStatus
+  note            String?
+  actorId         String?
+  actor           User?                      @relation("TravelStatusActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt       DateTime                   @default(now())
+
+  @@index([reimbursementId, createdAt])
+  @@index([actorId])
+}
+
+model TravelEventSettings {
+  id                        String    @id @default("event")
+  hackathonStartAt          DateTime?
+  reimbursementInstructions String    @default("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
+  finalReviewInstructions   String    @default("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
+  updatedAt                 DateTime  @updatedAt
+}
+
+model TravelFinalRequirement {
+  id        String                   @id @default(cuid())
+  name      String                   @unique
+  active    Boolean                  @default(true)
+  checks    TravelRequirementCheck[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+}
+
+model TravelRequirementCheck {
+  reimbursementId String
+  requirementId   String
+  checked         Boolean                @default(false)
+  checkedAt       DateTime?
+  checkedById     String?
+  reimbursement   TravelReimbursement    @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  requirement     TravelFinalRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  checkedBy       User?                  @relation("TravelRequirementChecker", fields: [checkedById], references: [id], onDelete: SetNull)
+
+  @@id([reimbursementId, requirementId])
+  @@index([requirementId])
+  @@index([checkedById])
 }

@@ -1,16 +1,26 @@
 import { MetadataForm } from "@/components/metadata-form";
+import {
+  TravelRequirementForm,
+  TravelSettingsForm,
+} from "@/components/travel-metadata-forms";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
+import { formatLocalDateTime } from "@/lib/travel";
 
 export default async function MetadataPage() {
   await requireOrganizer(["ADMIN"]);
 
-  const [categories, departments] = await Promise.all([
+  const [categories, departments, travelSettings, travelRequirements] =
+    await Promise.all([
     prisma.category.findMany({
       include: { subcategories: { orderBy: { name: "asc" } } },
       orderBy: { name: "asc" },
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.travelEventSettings.findUnique({ where: { id: "event" } }),
+    prisma.travelFinalRequirement.findMany({
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+    }),
   ]);
 
   return (
@@ -18,12 +28,57 @@ export default async function MetadataPage() {
       <div className="mb-8">
         <p className="eyebrow">Configuration</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-slate-950">
-          Categories and departments
+          Event metadata
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Edit the metadata used by budgets, reports, and expenses.
+          Edit metadata used by budgets, expenses, and travel reimbursements.
         </p>
       </div>
+
+      <section className="dashboard-card mb-6 grid gap-6 lg:grid-cols-2">
+        <div>
+          <p className="eyebrow">Travel configuration</p>
+          <h2 className="mt-1 text-xl font-semibold">Event and reimbursement</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Datetimes are entered and displayed in the event&apos;s local time.
+            The deployment server must use the same timezone.
+          </p>
+          <div className="mt-5">
+            <TravelSettingsForm
+              hackathonStartAt={formatLocalDateTime(
+                travelSettings?.hackathonStartAt,
+              )}
+              reimbursementInstructions={
+                travelSettings?.reimbursementInstructions ??
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+              }
+              finalReviewInstructions={
+                travelSettings?.finalReviewInstructions ??
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+              }
+            />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <p className="eyebrow">Final approval</p>
+            <h2 className="mt-1 text-xl font-semibold">Requirements</h2>
+          </div>
+          <TravelRequirementForm />
+          {travelRequirements.map((requirement) => (
+            <div
+              key={requirement.id}
+              className="rounded-2xl border border-slate-200 p-4"
+            >
+              <TravelRequirementForm
+                id={requirement.id}
+                name={requirement.name}
+                active={requirement.active}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="dashboard-card space-y-5">

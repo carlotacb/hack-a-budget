@@ -21,7 +21,8 @@ body {
 button,
 a,
 input,
-select {
+select,
+textarea {
   transition:
     color 160ms ease,
     background-color 160ms ease,
@@ -258,8 +259,8 @@ button:disabled {
 }
 
 .field input,
-.field select {
-  height: 3rem;
+.field select,
+.field textarea {
   width: 100%;
   border: 1px solid #dbe2ea;
   border-radius: 0.75rem;
@@ -268,8 +269,20 @@ button:disabled {
   outline: none;
 }
 
+.field input,
+.field select {
+  height: 3rem;
+}
+
+.field textarea {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  resize: vertical;
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   border-color: #8b5cf6;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
 }

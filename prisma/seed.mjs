@@ -22,6 +22,24 @@ const demoUsers = [
     city: "Madrid",
     major: "Event Management",
   },
+  {
+    name: "Demo Director",
+    email: "director@example.com",
+    password: "DemoDirector123!",
+    role: Role.DIRECTOR,
+    gender: Gender.PREFER_NOT_TO_SAY,
+    city: "Valencia",
+    major: "Operations",
+  },
+  {
+    name: "Demo Plain Organizer",
+    email: "plain-organizer@example.com",
+    password: "DemoOrganizer123!",
+    role: Role.ORGANIZER,
+    gender: Gender.PREFER_NOT_TO_SAY,
+    city: "Seville",
+    major: "Logistics",
+  },
 ];
 
 const categories = [
@@ -141,7 +159,32 @@ try {
     });
   }
 
-  console.log("Demo hacker and admin accounts are ready.");
+  await prisma.travelEventSettings.upsert({
+    where: { id: "event" },
+    update: {},
+    create: {
+      id: "event",
+      hackathonStartAt: new Date(Date.now() - 60 * 60 * 1000),
+      reimbursementInstructions:
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Keep your ticket and follow the event desk instructions for reimbursement.",
+      finalReviewInstructions:
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Your demo proof and final checklist will be reviewed by the event team.",
+    },
+  });
+
+  for (const name of [
+    "Project or demo URL is accessible",
+    "Demo was presented to the review team",
+    "Travel ticket and identity details match",
+  ]) {
+    await prisma.travelFinalRequirement.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
+  console.log("Demo accounts, travel settings, and metadata are ready.");
 } finally {
   await prisma.$disconnect();
 }
