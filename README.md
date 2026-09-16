@@ -44,11 +44,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-`npm run dev` creates a cryptographically random `AUTH_SECRET_DEV` in the
-ignored `.env.local` file if no local secret is configured. It is reused across
-restarts, so local JWT sessions remain valid. Production never reads this
-development fallback: set an explicit, securely generated `AUTH_SECRET` in the
-deployment environment.
+`npm run dev` regenerates Prisma Client before starting Next.js, then creates a
+cryptographically random `AUTH_SECRET_DEV` in the ignored `.env.local` file if
+no local secret is configured. The secret is reused across restarts, so local
+JWT sessions remain valid. Production never reads this development fallback:
+set an explicit, securely generated `AUTH_SECRET` in the deployment environment.
+`npm run build` also regenerates Prisma Client before Next.js runs its production
+build and type checking.
 
 The seed creates these local demo accounts:
 
