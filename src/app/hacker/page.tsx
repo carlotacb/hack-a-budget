@@ -106,9 +106,8 @@ export default async function HackerPage() {
               <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
                 Your round trip
               </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Submit your travel reimbursement request to get reimbursed for your travel expenses. Make sure your ticket follows the following rules [Link with the rules]
               </p>
             </div>
             {reimbursement && (
