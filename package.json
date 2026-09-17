@@ -6,17 +6,19 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "predev": "npm run db:generate",
+    "predev": "npm run db:deploy && npm run db:generate",
     "dev": "npm run dev:start",
     "predev:start": "node scripts/ensure-local-auth-secret.mjs",
     "dev:start": "next dev",
     "prebuild": "npm run db:generate",
     "build": "next build",
+    "prestart": "npm run db:deploy",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate"
