@@ -6,9 +6,8 @@ vi.mock("@/app/organizer/settings/metadata/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 
-const { TravelSettingsForm, TravelRequirementForm } = await import(
-  "@/components/travel-metadata-forms"
-);
+const { TravelSettingsForm, TravelRequirementForm, TravelMessageTemplateForm } =
+  await import("@/components/travel-metadata-forms");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -135,5 +134,81 @@ describe("TravelRequirementForm", () => {
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("updateTravelRequirement");
     expect(formData.get("id")).toBe("req1");
+  });
+});
+
+describe("TravelMessageTemplateForm", () => {
+  test("renders a create form with the type carried as a hidden field", () => {
+    render(<TravelMessageTemplateForm type="REJECT" />);
+
+    expect(screen.getByText("New template name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+  });
+
+  test("renders an edit form with the active checkbox when an id is provided", () => {
+    render(
+      <TravelMessageTemplateForm
+        type="REQUEST_CHANGES"
+        id="tpl1"
+        name="Wrong dates"
+        message="Your dates don't match the event."
+        active={false}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Wrong dates")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("Your dates don't match the event."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Active" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  test("submits createTravelMessageTemplate with the type, name, and message", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<TravelMessageTemplateForm type="REJECT" />);
+
+    fireEvent.change(screen.getByLabelText("New template name"), {
+      target: { value: "Missing ticket" },
+    });
+    fireEvent.change(screen.getByLabelText("Message"), {
+      target: { value: "We could not verify your ticket." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(formData.get("operation")).toBe("createTravelMessageTemplate");
+    expect(formData.get("type")).toBe("REJECT");
+    expect(formData.get("name")).toBe("Missing ticket");
+    expect(formData.get("message")).toBe("We could not verify your ticket.");
+    expect(formData.get("id")).toBeNull();
+  });
+
+  test("submits updateTravelMessageTemplate with the id when editing, without a type field", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(
+      <TravelMessageTemplateForm
+        type="REJECT"
+        id="tpl1"
+        name="Missing ticket"
+        message="We could not verify your ticket."
+        active
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(formData.get("operation")).toBe("updateTravelMessageTemplate");
+    expect(formData.get("id")).toBe("tpl1");
+    expect(formData.get("type")).toBeNull();
   });
 });

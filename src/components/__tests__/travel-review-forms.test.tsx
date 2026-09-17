@@ -132,6 +132,67 @@ describe("TravelReviewForm", () => {
       "Review saved.",
     );
   });
+
+  test("does not render template pickers when no templates are provided", () => {
+    render(
+      <TravelReviewForm
+        reimbursementId="r1"
+        submittedTotal="150.00"
+        currencyCode="EUR"
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText("Reject template"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Request changes template"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("applying a reject template fills the reviewer note, and the note stays editable", () => {
+    render(
+      <TravelReviewForm
+        reimbursementId="r1"
+        submittedTotal="150.00"
+        currencyCode="EUR"
+        rejectTemplates={[
+          { id: "tpl1", name: "Missing ticket", message: "Ticket missing." },
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Reject template"), {
+      target: { value: "Ticket missing." },
+    });
+
+    const note = screen.getByLabelText("Reviewer note") as HTMLTextAreaElement;
+    expect(note.value).toBe("Ticket missing.");
+
+    fireEvent.change(note, { target: { value: "Ticket missing, edited." } });
+    expect(note.value).toBe("Ticket missing, edited.");
+  });
+
+  test("applying a request-changes template fills the reviewer note", () => {
+    render(
+      <TravelReviewForm
+        reimbursementId="r1"
+        submittedTotal="150.00"
+        currencyCode="EUR"
+        requestChangesTemplates={[
+          { id: "tpl2", name: "Wrong dates", message: "Dates don't match." },
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Request changes template"), {
+      target: { value: "Dates don't match." },
+    });
+
+    expect(screen.getByLabelText("Reviewer note")).toHaveValue(
+      "Dates don't match.",
+    );
+  });
 });
 
 describe("FinalRequirementForms", () => {
