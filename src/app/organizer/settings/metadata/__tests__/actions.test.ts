@@ -10,9 +10,15 @@ const subcategoryCreateMock = vi.fn();
 const subcategoryUpdateMock = vi.fn();
 const departmentCreateMock = vi.fn();
 const departmentUpdateMock = vi.fn();
+const departmentFindUniqueMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
+const transactionMock = vi.fn(async (...args: unknown[]) => {
+  const [ops] = args;
+  if (Array.isArray(ops)) return Promise.all(ops);
+  return ops;
+});
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -28,6 +34,7 @@ vi.mock("@/lib/prisma", () => ({
     department: {
       create: (...args: unknown[]) => departmentCreateMock(...args),
       update: (...args: unknown[]) => departmentUpdateMock(...args),
+      findUnique: (...args: unknown[]) => departmentFindUniqueMock(...args),
     },
     travelEventSettings: {
       upsert: (...args: unknown[]) => travelSettingsUpsertMock(...args),
@@ -36,6 +43,7 @@ vi.mock("@/lib/prisma", () => ({
       create: (...args: unknown[]) => travelRequirementCreateMock(...args),
       update: (...args: unknown[]) => travelRequirementUpdateMock(...args),
     },
+    $transaction: (...args: unknown[]) => transactionMock(...args),
   },
 }));
 
@@ -56,6 +64,10 @@ function formData(fields: Record<string, string>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  departmentFindUniqueMock.mockResolvedValue({
+    id: "general-dep-id",
+    code: "general",
+  });
 });
 
 async function asAdmin() {
@@ -107,26 +119,7 @@ describe("saveMetadata", () => {
     expect(result).toEqual({ success: true });
   });
 
-  test("updates a category with active flag", async () => {
-    await asAdmin();
-
-    await saveMetadata(
-      {},
-      formData({
-        operation: "updateCategory",
-        id: "clabcdefghijklmnopqrstu1",
-        name: "Food",
-        active: "on",
-      }),
-    );
-
-    expect(categoryUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
-      data: { name: "Food", active: true },
-    });
-  });
-
-  test("creates a subcategory", async () => {
+  test("creates a subcategory with a department", async () => {
     await asAdmin();
 
     await saveMetadata(
@@ -135,30 +128,33 @@ describe("saveMetadata", () => {
         operation: "createSubcategory",
         categoryId: "clabcdefghijklmnopqrstu1",
         name: "Snacks",
+        departmentId: "clabcdefghijklmnopqrstu2",
       }),
     );
 
     expect(subcategoryCreateMock).toHaveBeenCalledWith({
-      data: { categoryId: "clabcdefghijklmnopqrstu1", name: "Snacks" },
+      data: {
+        categoryId: "clabcdefghijklmnopqrstu1",
+        name: "Snacks",
+        departmentId: "clabcdefghijklmnopqrstu2",
+      },
     });
   });
 
-  test("updates a subcategory", async () => {
+  test("errors creating a subcategory without a department", async () => {
     await asAdmin();
 
-    await saveMetadata(
+    const result = await saveMetadata(
       {},
       formData({
-        operation: "updateSubcategory",
-        id: "clabcdefghijklmnopqrstu1",
+        operation: "createSubcategory",
+        categoryId: "clabcdefghijklmnopqrstu1",
         name: "Snacks",
       }),
     );
 
-    expect(subcategoryUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
-      data: { name: "Snacks", active: false },
-    });
+    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 
   test("creates a department with a lowercased code", async () => {
@@ -175,26 +171,6 @@ describe("saveMetadata", () => {
 
     expect(departmentCreateMock).toHaveBeenCalledWith({
       data: { code: "ops", name: "Operations" },
-    });
-  });
-
-  test("updates a department", async () => {
-    await asAdmin();
-
-    await saveMetadata(
-      {},
-      formData({
-        operation: "updateDepartment",
-        id: "clabcdefghijklmnopqrstu1",
-        code: "OPS",
-        name: "Operations",
-        active: "on",
-      }),
-    );
-
-    expect(departmentUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
-      data: { code: "ops", name: "Operations", active: true },
     });
   });
 
@@ -318,5 +294,221 @@ describe("saveMetadata", () => {
     await expect(
       saveMetadata({}, formData({ operation: "createCategory", name: "Food" })),
     ).rejects.toThrow("db down");
+  });
+});
+
+describe("saveMetadata bulkUpdateCategories", () => {
+  test("errors when not an admin", async () => {
+    authMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "bulkUpdateCategories" }),
+    );
+
+    expect(result.error).toBe("Only admins can edit metadata.");
+  });
+
+  test("errors when there is nothing to save", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "bulkUpdateCategories" }),
+    );
+
+    expect(result.error).toBe("Nothing to save.");
+  });
+
+  test("errors on a blank category name", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "category:cat1:name": "x",
+      }),
+    );
+
+    expect(result.error).toBe(
+      "Each category needs a name with at least 2 characters.",
+    );
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  test("errors when a subcategory has no department", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "subcategory:sub1:name": "Snacks",
+      }),
+    );
+
+    expect(result.error).toBe("Each subcategory must have a department.");
+  });
+
+  test("updates every category and subcategory row in one transaction", async () => {
+    await asAdmin();
+
+    const fd = formData({
+      operation: "bulkUpdateCategories",
+      "category:cat1:name": "Food",
+      "category:cat1:active": "on",
+      "category:cat2:name": "Travel",
+      "subcategory:sub1:name": "Snacks",
+      "subcategory:sub1:departmentId": "dep1",
+      "subcategory:sub1:active": "on",
+    });
+
+    const result = await saveMetadata({}, fd);
+
+    expect(categoryUpdateMock).toHaveBeenCalledWith({
+      where: { id: "cat1" },
+      data: { name: "Food", active: true },
+    });
+    expect(categoryUpdateMock).toHaveBeenCalledWith({
+      where: { id: "cat2" },
+      data: { name: "Travel", active: false },
+    });
+    expect(subcategoryUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub1" },
+      data: { name: "Snacks", active: true, departmentId: "dep1" },
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ success: true });
+  });
+
+  test("returns a friendly error on a duplicate name", async () => {
+    await asAdmin();
+    const { Prisma } = await import("@prisma/client");
+    transactionMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("dup", {
+        code: "P2002",
+        clientVersion: "1",
+      }),
+    );
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "category:cat1:name": "Food",
+      }),
+    );
+
+    expect(result.error).toBe("That name is already in use.");
+  });
+});
+
+describe("saveMetadata bulkUpdateDepartments", () => {
+  test("errors when there is nothing to save", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "bulkUpdateDepartments" }),
+    );
+
+    expect(result.error).toBe("Nothing to save.");
+  });
+
+  test("errors on a blank department name", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:dep1:name": "x",
+        "department:dep1:code": "ops",
+      }),
+    );
+
+    expect(result.error).toBe(
+      "Each department needs a name with at least 2 characters.",
+    );
+  });
+
+  test("errors on an invalid department code", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:dep1:name": "Operations",
+        "department:dep1:code": "o",
+      }),
+    );
+
+    expect(result.error).toBe("Each department needs a valid code.");
+  });
+
+  test("updates non-protected departments including code and active state", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:dep1:name": "Operations",
+        "department:dep1:code": "OPS",
+        "department:dep1:active": "on",
+      }),
+    );
+
+    expect(departmentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "dep1" },
+      data: { name: "Operations", code: "ops", active: true },
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("does not require a code or touch active for the protected general department", async () => {
+    await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce({
+      id: "general-dep-id",
+      code: "general",
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:general-dep-id:name": "General",
+      }),
+    );
+
+    expect(departmentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "general-dep-id" },
+      data: { name: "General" },
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("returns a friendly error on a duplicate code", async () => {
+    await asAdmin();
+    const { Prisma } = await import("@prisma/client");
+    transactionMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("dup", {
+        code: "P2002",
+        clientVersion: "1",
+      }),
+    );
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:dep1:name": "Operations",
+        "department:dep1:code": "ops",
+      }),
+    );
+
+    expect(result.error).toBe("That code is already in use.");
   });
 });

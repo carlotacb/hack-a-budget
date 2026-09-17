@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hack-a-buget-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "export PATH=/Users/carlotacatot/.nvm/versions/node/v20.9.0/bin:$PATH && npm run dev"],
+      "port": 3000
+    }
+  ]
+}

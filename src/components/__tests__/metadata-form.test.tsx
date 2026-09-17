@@ -8,6 +8,11 @@ vi.mock("@/app/organizer/settings/metadata/actions", () => ({
 
 const { MetadataForm } = await import("@/components/metadata-form");
 
+const departments = [
+  { id: "dep1", name: "HX" },
+  { id: "dep2", name: "Logistics" },
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -17,7 +22,7 @@ afterEach(() => {
 });
 
 describe("MetadataForm", () => {
-  test("renders create form with 'New name' label and Add button", () => {
+  test("renders create-category form with 'New name' label and Add button", () => {
     render(<MetadataForm operation="createCategory" />);
 
     expect(screen.getByLabelText("New name")).toBeInTheDocument();
@@ -26,25 +31,10 @@ describe("MetadataForm", () => {
     expect(screen.queryByLabelText("Code")).not.toBeInTheDocument();
   });
 
-  test("renders update form with 'Name' label, active checkbox and Save button", () => {
-    render(
-      <MetadataForm
-        operation="updateCategory"
-        id="cat1"
-        name="Food"
-        active={false}
-      />,
-    );
-
-    expect(screen.getByLabelText("Name")).toHaveValue("Food");
-    expect(screen.getByRole("checkbox", { name: "Active" })).not.toBeChecked();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-  });
-
   test("renders the code field for department operations", () => {
-    render(<MetadataForm operation="createDepartment" code="OPS" />);
+    render(<MetadataForm operation="createDepartment" />);
 
-    expect(screen.getByLabelText("Code")).toHaveValue("OPS");
+    expect(screen.getByLabelText("Code")).toBeInTheDocument();
   });
 
   test("does not render the code field for non-department operations", () => {
@@ -53,12 +43,60 @@ describe("MetadataForm", () => {
     expect(screen.queryByLabelText("Code")).not.toBeInTheDocument();
   });
 
-  test("submits create operation with entered name", async () => {
+  test("renders a department select for createSubcategory", () => {
+    render(
+      <MetadataForm
+        operation="createSubcategory"
+        categoryId="cat1"
+        departments={departments}
+      />,
+    );
+
+    expect(screen.getByLabelText("Department")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "HX" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Logistics" }),
+    ).toBeInTheDocument();
+  });
+
+  test("does not render a department select for other operations", () => {
+    render(<MetadataForm operation="createCategory" />);
+
+    expect(screen.queryByLabelText("Department")).not.toBeInTheDocument();
+  });
+
+  test("submits createCategory with entered name", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(<MetadataForm operation="createSubcategory" categoryId="cat1" />);
+    render(<MetadataForm operation="createCategory" />);
+
+    fireEvent.change(screen.getByLabelText("New name"), {
+      target: { value: "Food" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(formData.get("operation")).toBe("createCategory");
+    expect(formData.get("name")).toBe("Food");
+  });
+
+  test("submits createSubcategory with categoryId, name, and departmentId", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(
+      <MetadataForm
+        operation="createSubcategory"
+        categoryId="cat1"
+        departments={departments}
+      />,
+    );
 
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Snacks" },
+    });
+    fireEvent.change(screen.getByLabelText("Department"), {
+      target: { value: "dep2" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
@@ -69,34 +107,31 @@ describe("MetadataForm", () => {
     expect(formData.get("operation")).toBe("createSubcategory");
     expect(formData.get("categoryId")).toBe("cat1");
     expect(formData.get("name")).toBe("Snacks");
-    expect(formData.get("id")).toBeNull();
+    expect(formData.get("departmentId")).toBe("dep2");
   });
 
-  test("submits update operation with id and active state", async () => {
+  test("submits createDepartment with code and name", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(
-      <MetadataForm
-        operation="updateDepartment"
-        id="dep1"
-        name="Ops"
-        code="OPS"
-        active
-      />,
-    );
+    render(<MetadataForm operation="createDepartment" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.change(screen.getByLabelText("Code"), {
+      target: { value: "ops" },
+    });
+    fireEvent.change(screen.getByLabelText("New name"), {
+      target: { value: "Ops" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => {
       expect(saveMetadataMock).toHaveBeenCalled();
     });
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
-    expect(formData.get("operation")).toBe("updateDepartment");
-    expect(formData.get("id")).toBe("dep1");
-    expect(formData.get("code")).toBe("OPS");
-    expect(formData.get("active")).toBe("on");
+    expect(formData.get("operation")).toBe("createDepartment");
+    expect(formData.get("code")).toBe("ops");
+    expect(formData.get("name")).toBe("Ops");
   });
 
-  test("disables the button and shows the saving label while pending", async () => {
+  test("disables the button and shows the pending label while saving", async () => {
     let resolveSave: (value: object) => void = () => {};
     saveMetadataMock.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -111,7 +146,7 @@ describe("MetadataForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(
-      await screen.findByRole("button", { name: "Saving..." }),
+      await screen.findByRole("button", { name: "Adding..." }),
     ).toBeDisabled();
 
     resolveSave({ success: true });

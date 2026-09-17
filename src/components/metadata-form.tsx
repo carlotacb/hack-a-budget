@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useActionState } from "react";
 import {
   type MetadataFormState,
@@ -8,61 +9,66 @@ import {
 
 const initialState: MetadataFormState = {};
 
+type Department = {
+  id: string;
+  name: string;
+};
+
 type MetadataFormProps = {
-  operation:
-    | "createCategory"
-    | "updateCategory"
-    | "createSubcategory"
-    | "updateSubcategory"
-    | "createDepartment"
-    | "updateDepartment";
-  id?: string;
+  operation: "createCategory" | "createSubcategory" | "createDepartment";
   categoryId?: string;
-  name?: string;
-  code?: string;
-  active?: boolean;
+  departments?: Department[];
 };
 
 export function MetadataForm({
   operation,
-  id,
   categoryId,
-  name = "",
-  code,
-  active = true,
+  departments,
 }: MetadataFormProps) {
   const [state, formAction, pending] = useActionState(
     saveMetadata,
     initialState,
   );
-  const isCreate = operation.startsWith("create");
-  const isDepartment = operation.endsWith("Department");
+  const isDepartment = operation === "createDepartment";
+  const isSubcategory = operation === "createSubcategory";
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="operation" value={operation} />
-      {id && <input type="hidden" name="id" value={id} />}
       {categoryId && (
         <input type="hidden" name="categoryId" value={categoryId} />
       )}
       {isDepartment && (
         <label className="field min-w-28 flex-1">
           <span>Code</span>
-          <input name="code" defaultValue={code} placeholder="code" required />
+          <input name="code" placeholder="code" required />
         </label>
       )}
       <label className="field min-w-40 flex-[2]">
-        <span>{isCreate ? "New name" : "Name"}</span>
-        <input name="name" defaultValue={name} placeholder="Name" required />
+        <span>New name</span>
+        <input name="name" placeholder="Name" required />
       </label>
-      {!isCreate && (
-        <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
-          <input name="active" type="checkbox" defaultChecked={active} />
-          Active
+      {isSubcategory && (
+        <label className="field min-w-40 flex-[2]">
+          <span>Department</span>
+          <select name="departmentId" required defaultValue="">
+            <option value="" disabled>
+              Select a department
+            </option>
+            {departments?.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
         </label>
       )}
-      <button className="secondary-button !h-12 text-sm" disabled={pending}>
-        {pending ? "Saving..." : isCreate ? "Add" : "Save"}
+      <button
+        className="secondary-button !h-12 text-sm"
+        disabled={pending}
+        aria-label={pending ? "Adding..." : "Add"}
+      >
+        {pending ? "Adding..." : <Plus size={18} aria-hidden="true" />}
       </button>
       {state.error && (
         <p role="alert" className="w-full text-xs text-red-600">
