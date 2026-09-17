@@ -138,8 +138,8 @@ describe("TravelRequirementForm", () => {
 });
 
 describe("TravelMessageTemplateForm", () => {
-  test("renders a create form with the type carried as a hidden field", () => {
-    render(<TravelMessageTemplateForm type="REJECT" />);
+  test("renders a create form", () => {
+    render(<TravelMessageTemplateForm />);
 
     expect(screen.getByText("New template name")).toBeInTheDocument();
     expect(screen.getByLabelText("Message")).toBeInTheDocument();
@@ -150,7 +150,6 @@ describe("TravelMessageTemplateForm", () => {
   test("renders an edit form with the active checkbox when an id is provided", () => {
     render(
       <TravelMessageTemplateForm
-        type="REQUEST_CHANGES"
         id="tpl1"
         name="Wrong dates"
         message="Your dates don't match the event."
@@ -166,9 +165,9 @@ describe("TravelMessageTemplateForm", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
-  test("submits createTravelMessageTemplate with the type, name, and message", async () => {
+  test("submits createTravelMessageTemplate with the name and message", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(<TravelMessageTemplateForm type="REJECT" />);
+    render(<TravelMessageTemplateForm />);
 
     fireEvent.change(screen.getByLabelText("New template name"), {
       target: { value: "Missing ticket" },
@@ -183,17 +182,15 @@ describe("TravelMessageTemplateForm", () => {
     });
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("createTravelMessageTemplate");
-    expect(formData.get("type")).toBe("REJECT");
     expect(formData.get("name")).toBe("Missing ticket");
     expect(formData.get("message")).toBe("We could not verify your ticket.");
     expect(formData.get("id")).toBeNull();
   });
 
-  test("submits updateTravelMessageTemplate with the id when editing, without a type field", async () => {
+  test("submits updateTravelMessageTemplate with the id when editing", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(
       <TravelMessageTemplateForm
-        type="REJECT"
         id="tpl1"
         name="Missing ticket"
         message="We could not verify your ticket."
@@ -209,6 +206,5 @@ describe("TravelMessageTemplateForm", () => {
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("updateTravelMessageTemplate");
     expect(formData.get("id")).toBe("tpl1");
-    expect(formData.get("type")).toBeNull();
   });
 });

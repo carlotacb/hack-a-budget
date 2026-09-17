@@ -228,22 +228,15 @@ model TravelEventSettings {
   updatedAt                 DateTime  @updatedAt
 }
 
-enum TravelMessageTemplateType {
-  REJECT
-  REQUEST_CHANGES
-}
-
 model TravelMessageTemplate {
-  id        String                    @id @default(cuid())
-  type      TravelMessageTemplateType
-  name      String
+  id        String   @id @default(cuid())
+  name      String   @unique
   message   String
-  active    Boolean                   @default(true)
-  createdAt DateTime                  @default(now())
-  updatedAt DateTime                  @updatedAt
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([type, name])
-  @@index([type, active])
+  @@index([active])
 }
 
 model TravelFinalRequirement {

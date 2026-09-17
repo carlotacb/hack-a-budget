@@ -20,14 +20,12 @@ export function TravelReviewForm({
   reimbursementId,
   submittedTotal,
   currencyCode,
-  rejectTemplates = [],
-  requestChangesTemplates = [],
+  messageTemplates = [],
 }: {
   reimbursementId: string;
   submittedTotal: string;
   currencyCode: string;
-  rejectTemplates?: MessageTemplate[];
-  requestChangesTemplates?: MessageTemplate[];
+  messageTemplates?: MessageTemplate[];
 }) {
   const action = reviewTravelRequest.bind(null, reimbursementId);
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -55,25 +53,12 @@ export function TravelReviewForm({
             defaultValue={submittedTotal}
           />
         </label>
-        {requestChangesTemplates.length > 0 && (
+        {messageTemplates.length > 0 && (
           <label className="field">
-            <span>Request changes template</span>
+            <span>Message template</span>
             <select defaultValue="" onChange={applyTemplate}>
               <option value="">Apply a template…</option>
-              {requestChangesTemplates.map((template) => (
-                <option key={template.id} value={template.message}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {rejectTemplates.length > 0 && (
-          <label className="field">
-            <span>Reject template</span>
-            <select defaultValue="" onChange={applyTemplate}>
-              <option value="">Apply a template…</option>
-              {rejectTemplates.map((template) => (
+              {messageTemplates.map((template) => (
                 <option key={template.id} value={template.message}>
                   {template.name}
                 </option>

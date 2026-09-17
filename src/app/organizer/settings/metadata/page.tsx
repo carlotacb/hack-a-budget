@@ -35,13 +35,6 @@ export default async function MetadataPage() {
     }),
   ]);
 
-  const rejectTemplates = travelMessageTemplates.filter(
-    (template) => template.type === "REJECT",
-  );
-  const requestChangesTemplates = travelMessageTemplates.filter(
-    (template) => template.type === "REQUEST_CHANGES",
-  );
-
   const travelTab = (
     <section className="dashboard-card grid gap-6 lg:grid-cols-2">
       <div>
@@ -96,47 +89,21 @@ export default async function MetadataPage() {
             rejecting or requesting changes on a travel reimbursement.
           </p>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-700">
-              Request changes templates
-            </h3>
-            <TravelMessageTemplateForm type="REQUEST_CHANGES" />
-            {requestChangesTemplates.map((template) => (
-              <div
-                key={`${template.id}:${template.updatedAt.getTime()}`}
-                className="rounded-2xl border border-slate-200 p-4"
-              >
-                <TravelMessageTemplateForm
-                  type="REQUEST_CHANGES"
-                  id={template.id}
-                  name={template.name}
-                  message={template.message}
-                  active={template.active}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-700">
-              Reject templates
-            </h3>
-            <TravelMessageTemplateForm type="REJECT" />
-            {rejectTemplates.map((template) => (
-              <div
-                key={`${template.id}:${template.updatedAt.getTime()}`}
-                className="rounded-2xl border border-slate-200 p-4"
-              >
-                <TravelMessageTemplateForm
-                  type="REJECT"
-                  id={template.id}
-                  name={template.name}
-                  message={template.message}
-                  active={template.active}
-                />
-              </div>
-            ))}
-          </div>
+        <TravelMessageTemplateForm />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {travelMessageTemplates.map((template) => (
+            <div
+              key={`${template.id}:${template.updatedAt.getTime()}`}
+              className="rounded-2xl border border-slate-200 p-4"
+            >
+              <TravelMessageTemplateForm
+                id={template.id}
+                name={template.name}
+                message={template.message}
+                active={template.active}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </section>

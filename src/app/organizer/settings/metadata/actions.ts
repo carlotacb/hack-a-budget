@@ -48,7 +48,6 @@ const metadataSchema = z.discriminatedUnion("operation", [
   }),
   z.object({
     operation: z.literal("createTravelMessageTemplate"),
-    type: z.enum(["REJECT", "REQUEST_CHANGES"]),
     name: z.string().trim().min(2).max(100),
     message: z.string().trim().min(1).max(2000),
   }),
@@ -169,7 +168,7 @@ export async function saveMetadata(
         break;
       case "createTravelMessageTemplate":
         await prisma.travelMessageTemplate.create({
-          data: { type: data.type, name: data.name, message: data.message },
+          data: { name: data.name, message: data.message },
         });
         break;
       case "updateTravelMessageTemplate":

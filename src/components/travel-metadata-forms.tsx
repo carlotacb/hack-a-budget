@@ -107,13 +107,11 @@ export function TravelRequirementForm({
 }
 
 export function TravelMessageTemplateForm({
-  type,
   id,
   name = "",
   message = "",
   active = true,
 }: {
-  type: "REJECT" | "REQUEST_CHANGES";
   id?: string;
   name?: string;
   message?: string;
@@ -136,7 +134,6 @@ export function TravelMessageTemplateForm({
             : "updateTravelMessageTemplate"
         }
       />
-      {isCreate && <input type="hidden" name="type" value={type} />}
       {id && <input type="hidden" name="id" value={id} />}
       <div className="flex flex-wrap items-end gap-2">
         <label className="field min-w-48 flex-1">

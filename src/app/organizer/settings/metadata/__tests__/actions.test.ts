@@ -275,14 +275,13 @@ describe("saveMetadata", () => {
     });
   });
 
-  test("creates a reject message template", async () => {
+  test("creates a message template", async () => {
     await asAdmin();
 
     await saveMetadata(
       {},
       formData({
         operation: "createTravelMessageTemplate",
-        type: "REJECT",
         name: "Missing ticket",
         message: "We could not verify your ticket, please resubmit.",
       }),
@@ -290,44 +289,20 @@ describe("saveMetadata", () => {
 
     expect(travelMessageTemplateCreateMock).toHaveBeenCalledWith({
       data: {
-        type: "REJECT",
         name: "Missing ticket",
         message: "We could not verify your ticket, please resubmit.",
       },
     });
   });
 
-  test("creates a request-changes message template", async () => {
-    await asAdmin();
-
-    await saveMetadata(
-      {},
-      formData({
-        operation: "createTravelMessageTemplate",
-        type: "REQUEST_CHANGES",
-        name: "Wrong dates",
-        message: "Your travel dates don't match the event schedule.",
-      }),
-    );
-
-    expect(travelMessageTemplateCreateMock).toHaveBeenCalledWith({
-      data: {
-        type: "REQUEST_CHANGES",
-        name: "Wrong dates",
-        message: "Your travel dates don't match the event schedule.",
-      },
-    });
-  });
-
-  test("errors creating a message template with an invalid type", async () => {
+  test("errors creating a message template with a name that's too short", async () => {
     await asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "createTravelMessageTemplate",
-        type: "NOT_A_TYPE",
-        name: "Missing ticket",
+        name: "x",
         message: "We could not verify your ticket.",
       }),
     );
