@@ -10,10 +10,11 @@ const { DepartmentsBulkForm } = await import(
   "@/components/departments-bulk-form"
 );
 
+const updatedAt = "2026-01-01T00:00:00.000Z";
 const departments = [
-  { id: "dep1", code: "hx", name: "HX", active: true },
-  { id: "general-id", code: "general", name: "General", active: true },
-  { id: "dep2", code: "mkt", name: "Marketing", active: false },
+  { id: "dep1", code: "hx", name: "HX", active: true, updatedAt },
+  { id: "general-id", code: "general", name: "General", active: true, updatedAt },
+  { id: "dep2", code: "mkt", name: "Marketing", active: false, updatedAt },
 ];
 
 beforeEach(() => {
@@ -25,12 +26,12 @@ afterEach(() => {
 });
 
 describe("DepartmentsBulkForm", () => {
-  test("renders a row per department with two Save buttons", () => {
+  test("renders a row per department with a single Save button", () => {
     render(<DepartmentsBulkForm departments={departments} />);
 
     expect(screen.getAllByDisplayValue("HX")).toHaveLength(1);
     expect(screen.getAllByDisplayValue("Marketing")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
   });
 
   test("disables the code input and active checkbox for the general department", () => {
@@ -47,7 +48,7 @@ describe("DepartmentsBulkForm", () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(saveMetadataMock).toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe("DepartmentsBulkForm", () => {
     saveMetadataMock.mockResolvedValueOnce({ error: "Nothing to save." });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing to save.",
@@ -78,7 +79,7 @@ describe("DepartmentsBulkForm", () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
   });

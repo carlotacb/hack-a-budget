@@ -26,12 +26,14 @@ type Subcategory = {
   name: string;
   active: boolean;
   departmentId: string;
+  updatedAt: string | Date;
 };
 
 type Category = {
   id: string;
   name: string;
   active: boolean;
+  updatedAt: string | Date;
   subcategories: Subcategory[];
 };
 
@@ -69,10 +71,6 @@ export function CategoriesBulkForm({
         <input type="hidden" name="operation" value="bulkUpdateCategories" />
       </form>
 
-      <div className="flex items-center justify-end">
-        <SaveButton pending={pending} />
-      </div>
-
       {state.error && (
         <p role="alert" className="text-xs text-red-600">
           {state.error}
@@ -86,7 +84,13 @@ export function CategoriesBulkForm({
 
       {categories.map((category) => (
         <article
-          key={category.id}
+          // Remounting when `updatedAt` changes forces uncontrolled inputs to
+          // pick up the freshly-saved defaultValue. React resets a submitted
+          // form's uncontrolled fields once the action settles; without a key
+          // tied to the data, that reset re-applies the pre-save value and
+          // the field is stuck showing stale data even though the save
+          // succeeded (the next server refresh arrives too late to matter).
+          key={`${category.id}:${new Date(category.updatedAt).getTime()}`}
           className="space-y-3 rounded-2xl border border-slate-200 p-4"
         >
           <div className="flex flex-wrap items-end gap-2">
@@ -116,7 +120,7 @@ export function CategoriesBulkForm({
             </p>
             {category.subcategories.map((subcategory) => (
               <div
-                key={subcategory.id}
+                key={`${subcategory.id}:${new Date(subcategory.updatedAt).getTime()}`}
                 className="flex flex-wrap items-end gap-2"
               >
                 <label className="field min-w-40 flex-[2]">

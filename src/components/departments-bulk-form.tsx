@@ -16,6 +16,7 @@ type Department = {
   code: string;
   name: string;
   active: boolean;
+  updatedAt: string | Date;
 };
 
 type DepartmentsBulkFormProps = {
@@ -45,10 +46,6 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="operation" value="bulkUpdateDepartments" />
 
-      <div className="flex items-center justify-end">
-        <SaveButton pending={pending} />
-      </div>
-
       {state.error && (
         <p role="alert" className="text-xs text-red-600">
           {state.error}
@@ -65,7 +62,10 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
 
         return (
           <div
-            key={department.id}
+            // Remount when the record actually changes so uncontrolled
+            // inputs pick up the freshly-saved defaultValue — see the same
+            // note in categories-bulk-form.tsx.
+            key={`${department.id}:${new Date(department.updatedAt).getTime()}`}
             className="rounded-2xl border border-slate-200 p-4"
           >
             <div className="flex flex-wrap items-end gap-2">

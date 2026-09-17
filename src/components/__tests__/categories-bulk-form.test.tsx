@@ -27,14 +27,22 @@ const categories = [
     id: "cat1",
     name: "Venue",
     active: true,
+    updatedAt: "2026-01-01T00:00:00.000Z",
     subcategories: [
-      { id: "sub1", name: "Space rental", active: true, departmentId: "dep1" },
+      {
+        id: "sub1",
+        name: "Space rental",
+        active: true,
+        departmentId: "dep1",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
     ],
   },
   {
     id: "cat2",
     name: "Catering",
     active: false,
+    updatedAt: "2026-01-01T00:00:00.000Z",
     subcategories: [],
   },
 ];
@@ -48,7 +56,7 @@ afterEach(() => {
 });
 
 describe("CategoriesBulkForm", () => {
-  test("renders each category and subcategory row with two Save buttons", () => {
+  test("renders each category and subcategory row with a single Save button", () => {
     render(
       <CategoriesBulkForm categories={categories} departments={departments} />,
     );
@@ -56,7 +64,7 @@ describe("CategoriesBulkForm", () => {
     expect(screen.getByDisplayValue("Venue")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Catering")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Space rental")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
   });
 
   test("renders a standalone 'Add subcategory' form per category", () => {
@@ -74,7 +82,7 @@ describe("CategoriesBulkForm", () => {
       <CategoriesBulkForm categories={categories} departments={departments} />,
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(saveMetadataMock).toHaveBeenCalled();
@@ -122,7 +130,7 @@ describe("CategoriesBulkForm", () => {
       <CategoriesBulkForm categories={categories} departments={departments} />,
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing to save.",
