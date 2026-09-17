@@ -37,20 +37,25 @@ Requires Node.js 20.9 or newer.
 ```bash
 npm install
 cp .env.example .env
-npx prisma migrate dev --name init
+npm run db:deploy
 npm run db:seed
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-`npm run dev` regenerates Prisma Client before starting Next.js, then creates a
-cryptographically random `AUTH_SECRET_DEV` in the ignored `.env.local` file if
-no local secret is configured. The secret is reused across restarts, so local
-JWT sessions remain valid. Production never reads this development fallback:
-set an explicit, securely generated `AUTH_SECRET` in the deployment environment.
-`npm run build` also regenerates Prisma Client before Next.js runs its production
-build and type checking.
+`npm run dev` applies pending migrations and regenerates Prisma Client before
+starting Next.js, then creates a cryptographically random `AUTH_SECRET_DEV` in
+the ignored `.env.local` file if no local secret is configured. The secret is
+reused across restarts, so local JWT sessions remain valid. Production never
+reads this development fallback: set an explicit, securely generated
+`AUTH_SECRET` in the deployment environment. `npm run build` also regenerates
+Prisma Client before Next.js runs its production build and type checking, and
+`npm start` applies pending migrations before serving the application.
+
+Use `npm run db:migrate -- --name <migration-name>` after changing
+`prisma/schema.prisma` to generate a development migration. Use
+`npm run db:deploy` to apply committed migrations without creating new ones.
 
 The seed creates these local demo accounts:
 
