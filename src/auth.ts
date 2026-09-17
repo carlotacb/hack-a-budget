@@ -97,16 +97,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
-      if (
-        token.sub &&
-        (token.role === "HACKER" ||
-          token.role === "ORGANIZER" ||
-          token.role === "DIRECTOR" ||
-          token.role === "ADMIN")
-      ) {
+      if (token.sub) {
         session.user.id = token.sub;
+      }
+
+      if (
+        token.role === "HACKER" ||
+        token.role === "ORGANIZER" ||
+        token.role === "DIRECTOR" ||
+        token.role === "ADMIN"
+      ) {
         session.user.role = token.role;
       }
+
       return session;
     },
   },
