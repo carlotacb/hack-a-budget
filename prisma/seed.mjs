@@ -42,46 +42,6 @@ const demoUsers = [
   },
 ];
 
-const categories = [
-  {
-    name: "Venue",
-    budgetCents: 500000,
-    subcategories: [
-      { name: "Space rental", budgetCents: 400000 },
-      { name: "Equipment", budgetCents: 100000 },
-    ],
-  },
-  {
-    name: "Catering",
-    budgetCents: 300000,
-    subcategories: [
-      { name: "Meals", budgetCents: 250000 },
-      { name: "Snacks and drinks", budgetCents: 50000 },
-    ],
-  },
-  {
-    name: "Prizes",
-    budgetCents: 200000,
-    subcategories: [
-      { name: "Cash prizes", budgetCents: 150000 },
-      { name: "Swag", budgetCents: 50000 },
-    ],
-  },
-  {
-    name: "Marketing",
-    budgetCents: 100000,
-    subcategories: [
-      { name: "Advertising", budgetCents: 70000 },
-      { name: "Printing", budgetCents: 30000 },
-    ],
-  },
-  {
-    name: "Other",
-    budgetCents: 100000,
-    subcategories: [{ name: "Miscellaneous", budgetCents: 100000 }],
-  },
-];
-
 const departments = [
   { code: "hx", name: "HX" },
   { code: "logistics", name: "Logistics" },
@@ -90,6 +50,60 @@ const departments = [
   { code: "staff", name: "Staff" },
   { code: "webdev", name: "Web Development" },
   { code: "design", name: "Design" },
+];
+
+const categories = [
+  {
+    name: "Venue",
+    budgetCents: 500000,
+    subcategories: [
+      { name: "Space rental", budgetCents: 400000, departmentCode: "logistics" },
+      { name: "Equipment", budgetCents: 100000, departmentCode: "logistics" },
+    ],
+  },
+  {
+    name: "Catering",
+    budgetCents: 300000,
+    subcategories: [
+      { name: "Meals", budgetCents: 250000, departmentCode: "hx" },
+      {
+        name: "Snacks and drinks",
+        budgetCents: 50000,
+        departmentCode: "hx",
+      },
+    ],
+  },
+  {
+    name: "Prizes",
+    budgetCents: 200000,
+    subcategories: [
+      { name: "Cash prizes", budgetCents: 150000, departmentCode: "hx" },
+      { name: "Swag", budgetCents: 50000, departmentCode: "hx" },
+    ],
+  },
+  {
+    name: "Marketing",
+    budgetCents: 100000,
+    subcategories: [
+      {
+        name: "Advertising",
+        budgetCents: 70000,
+        departmentCode: "mkt",
+      },
+      { name: "Printing", budgetCents: 30000, departmentCode: "mkt" },
+    ],
+  },
+  {
+    name: "Other",
+    budgetCents: 100000,
+    subcategories: [
+      {
+        name: "Miscellaneous",
+        budgetCents: 100000,
+        departmentCode: "general",
+      },
+    ],
+  },
 ];
 
 try {
@@ -118,6 +132,16 @@ try {
     });
   }
 
+  const departmentIdByCode = new Map();
+  for (const department of departments) {
+    const savedDepartment = await prisma.department.upsert({
+      where: { code: department.code },
+      update: { name: department.name, active: true },
+      create: department,
+    });
+    departmentIdByCode.set(department.code, savedDepartment.id);
+  }
+
   for (const category of categories) {
     const { subcategories, ...categoryData } = category;
     const savedCategory = await prisma.category.upsert({
@@ -126,7 +150,9 @@ try {
       create: categoryData,
     });
 
-    for (const subcategory of subcategories) {
+    for (const { departmentCode, ...subcategory } of subcategories) {
+      const departmentId = departmentIdByCode.get(departmentCode);
+
       await prisma.subcategory.upsert({
         where: {
           categoryId_name: {
@@ -134,9 +160,10 @@ try {
             name: subcategory.name,
           },
         },
-        update: { active: true },
+        update: { active: true, departmentId },
         create: {
           categoryId: savedCategory.id,
+          departmentId,
           ...subcategory,
         },
       });
@@ -148,14 +175,6 @@ try {
         categoryLabel: category.name,
       },
       data: { categoryId: savedCategory.id },
-    });
-  }
-
-  for (const department of departments) {
-    await prisma.department.upsert({
-      where: { code: department.code },
-      update: { name: department.name, active: true },
-      create: department,
     });
   }
 
