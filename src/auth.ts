@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import type { Provider } from "next-auth/providers";
+import type { NextAuthConfig } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { z } from "zod";
@@ -11,6 +12,75 @@ const credentialsSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(8),
 });
+
+export async function authorizeCredentials(credentials: unknown) {
+  const parsed = credentialsSchema.safeParse(credentials);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: parsed.data.email.toLowerCase() },
+  });
+
+  if (
+    !user?.passwordHash ||
+    !(await compare(parsed.data.password, user.passwordHash))
+  ) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    role: user.role,
+  };
+}
+
+type JwtCallbackParams = Parameters<
+  NonNullable<NonNullable<NextAuthConfig["callbacks"]>["jwt"]>
+>[0];
+type SessionCallbackParams = Parameters<
+  NonNullable<NonNullable<NextAuthConfig["callbacks"]>["session"]>
+>[0];
+
+export async function jwtCallback({ token, user }: JwtCallbackParams) {
+  if (user) {
+    token.role = user.role;
+  }
+
+  if (token.sub) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: token.sub },
+      select: { role: true, name: true, email: true },
+    });
+    token.role = dbUser?.role;
+    token.name = dbUser?.name;
+    token.email = dbUser?.email;
+  }
+
+  return token;
+}
+
+export function sessionCallback({ session, token }: SessionCallbackParams) {
+  if (token.sub) {
+    session.user.id = token.sub;
+  }
+
+  if (
+    token.role === "HACKER" ||
+    token.role === "ORGANIZER" ||
+    token.role === "DIRECTOR" ||
+    token.role === "ADMIN"
+  ) {
+    session.user.role = token.role;
+  }
+
+  return session;
+}
 
 const isProduction = process.env.NODE_ENV === "production";
 const authSecret =
@@ -27,32 +97,7 @@ const providers: Provider[] = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
-      const parsed = credentialsSchema.safeParse(credentials);
-
-      if (!parsed.success) {
-        return null;
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email.toLowerCase() },
-      });
-
-      if (
-        !user?.passwordHash ||
-        !(await compare(parsed.data.password, user.passwordHash))
-      ) {
-        return null;
-      }
-
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.image,
-        role: user.role,
-      };
-    },
+    authorize: authorizeCredentials,
   }),
 ];
 
@@ -79,38 +124,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-      }
-
-      if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { role: true, name: true, email: true },
-        });
-        token.role = dbUser?.role;
-        token.name = dbUser?.name;
-        token.email = dbUser?.email;
-      }
-
-      return token;
-    },
-    session({ session, token }) {
-      if (token.sub) {
-        session.user.id = token.sub;
-      }
-
-      if (
-        token.role === "HACKER" ||
-        token.role === "ORGANIZER" ||
-        token.role === "DIRECTOR" ||
-        token.role === "ADMIN"
-      ) {
-        session.user.role = token.role;
-      }
-
-      return session;
-    },
+    jwt: jwtCallback,
+    session: sessionCallback,
   },
 });
