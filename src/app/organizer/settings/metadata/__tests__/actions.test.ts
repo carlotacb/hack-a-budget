@@ -14,6 +14,8 @@ const departmentFindUniqueMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
+const travelMessageTemplateCreateMock = vi.fn();
+const travelMessageTemplateUpdateMock = vi.fn();
 const transactionMock = vi.fn(async (...args: unknown[]) => {
   const [ops] = args;
   if (Array.isArray(ops)) return Promise.all(ops);
@@ -42,6 +44,10 @@ vi.mock("@/lib/prisma", () => ({
     travelFinalRequirement: {
       create: (...args: unknown[]) => travelRequirementCreateMock(...args),
       update: (...args: unknown[]) => travelRequirementUpdateMock(...args),
+    },
+    travelMessageTemplate: {
+      create: (...args: unknown[]) => travelMessageTemplateCreateMock(...args),
+      update: (...args: unknown[]) => travelMessageTemplateUpdateMock(...args),
     },
     $transaction: (...args: unknown[]) => transactionMock(...args),
   },
@@ -266,6 +272,89 @@ describe("saveMetadata", () => {
     expect(travelRequirementUpdateMock).toHaveBeenCalledWith({
       where: { id: "clabcdefghijklmnopqrstu1" },
       data: { name: "Passport", active: true },
+    });
+  });
+
+  test("creates a message template", async () => {
+    await asAdmin();
+
+    await saveMetadata(
+      {},
+      formData({
+        operation: "createTravelMessageTemplate",
+        name: "Missing ticket",
+        message: "We could not verify your ticket, please resubmit.",
+      }),
+    );
+
+    expect(travelMessageTemplateCreateMock).toHaveBeenCalledWith({
+      data: {
+        name: "Missing ticket",
+        message: "We could not verify your ticket, please resubmit.",
+      },
+    });
+  });
+
+  test("errors creating a message template with a name that's too short", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "createTravelMessageTemplate",
+        name: "x",
+        message: "We could not verify your ticket.",
+      }),
+    );
+
+    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(travelMessageTemplateCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("updates a message template", async () => {
+    await asAdmin();
+
+    await saveMetadata(
+      {},
+      formData({
+        operation: "updateTravelMessageTemplate",
+        id: "clabcdefghijklmnopqrstu1",
+        name: "Missing ticket",
+        message: "Updated message text.",
+        active: "on",
+      }),
+    );
+
+    expect(travelMessageTemplateUpdateMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1" },
+      data: {
+        name: "Missing ticket",
+        message: "Updated message text.",
+        active: true,
+      },
+    });
+  });
+
+  test("deactivates a message template when active is omitted", async () => {
+    await asAdmin();
+
+    await saveMetadata(
+      {},
+      formData({
+        operation: "updateTravelMessageTemplate",
+        id: "clabcdefghijklmnopqrstu1",
+        name: "Missing ticket",
+        message: "Updated message text.",
+      }),
+    );
+
+    expect(travelMessageTemplateUpdateMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1" },
+      data: {
+        name: "Missing ticket",
+        message: "Updated message text.",
+        active: false,
+      },
     });
   });
 

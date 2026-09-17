@@ -36,6 +36,14 @@ export default async function TravelReimbursementDetailPage({
     notFound();
   }
 
+  const messageTemplates =
+    reimbursement.status === "PENDING_REVIEW"
+      ? await prisma.travelMessageTemplate.findMany({
+          where: { active: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
+
   const requirements =
     reimbursement.status === "FINAL_REVIEW"
       ? await prisma.travelFinalRequirement.findMany({
@@ -127,6 +135,7 @@ export default async function TravelReimbursementDetailPage({
             reimbursementId={reimbursement.id}
             submittedTotal={(reimbursement.totalPriceCents / 100).toFixed(2)}
             currencyCode={reimbursement.totalCurrencyCode}
+            messageTemplates={messageTemplates}
           />
         </section>
       )}

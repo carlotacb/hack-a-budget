@@ -106,6 +106,59 @@ export function TravelRequirementForm({
   );
 }
 
+export function TravelMessageTemplateForm({
+  id,
+  name = "",
+  message = "",
+  active = true,
+}: {
+  id?: string;
+  name?: string;
+  message?: string;
+  active?: boolean;
+}) {
+  const [state, formAction, pending] = useActionState(
+    saveMetadata,
+    initialState,
+  );
+  const isCreate = !id;
+
+  return (
+    <form action={formAction} className="space-y-2">
+      <input
+        type="hidden"
+        name="operation"
+        value={
+          isCreate
+            ? "createTravelMessageTemplate"
+            : "updateTravelMessageTemplate"
+        }
+      />
+      {id && <input type="hidden" name="id" value={id} />}
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="field min-w-48 flex-1">
+          <span>{isCreate ? "New template name" : "Template name"}</span>
+          <input name="name" defaultValue={name} required />
+        </label>
+        {!isCreate && (
+          <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
+            <input name="active" type="checkbox" defaultChecked={active} />
+            Active
+          </label>
+        )}
+        <button className="secondary-button" disabled={pending}>
+          {pending ? "Saving..." : isCreate ? "Add" : "Save"}
+        </button>
+      </div>
+      <label className="field">
+        <span>Message</span>
+        <textarea name="message" defaultValue={message} rows={3} required />
+      </label>
+      <FormResult state={state} />
+    </form>
+  );
+}
+
 function FormResult({ state }: { state: MetadataFormState }) {
   if (state.error) {
     return (

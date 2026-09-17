@@ -3,6 +3,7 @@ import { DepartmentsBulkForm } from "@/components/departments-bulk-form";
 import { MetadataForm } from "@/components/metadata-form";
 import { MetadataTabs } from "@/components/metadata-tabs";
 import {
+  TravelMessageTemplateForm,
   TravelRequirementForm,
   TravelSettingsForm,
 } from "@/components/travel-metadata-forms";
@@ -13,8 +14,13 @@ import { formatLocalDateTime } from "@/lib/travel";
 export default async function MetadataPage() {
   await requireOrganizer(["ADMIN"]);
 
-  const [categories, departments, travelSettings, travelRequirements] =
-    await Promise.all([
+  const [
+    categories,
+    departments,
+    travelSettings,
+    travelRequirements,
+    travelMessageTemplates,
+  ] = await Promise.all([
     prisma.category.findMany({
       include: { subcategories: { orderBy: { name: "asc" } } },
       orderBy: { name: "asc" },
@@ -22,6 +28,9 @@ export default async function MetadataPage() {
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.travelEventSettings.findUnique({ where: { id: "event" } }),
     prisma.travelFinalRequirement.findMany({
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+    }),
+    prisma.travelMessageTemplate.findMany({
       orderBy: [{ active: "desc" }, { name: "asc" }],
     }),
   ]);
@@ -59,7 +68,7 @@ export default async function MetadataPage() {
         <TravelRequirementForm />
         {travelRequirements.map((requirement) => (
           <div
-            key={requirement.id}
+            key={`${requirement.id}:${requirement.updatedAt.getTime()}`}
             className="rounded-2xl border border-slate-200 p-4"
           >
             <TravelRequirementForm
@@ -69,6 +78,33 @@ export default async function MetadataPage() {
             />
           </div>
         ))}
+      </div>
+
+      <div className="space-y-4 lg:col-span-2">
+        <div>
+          <p className="eyebrow">Initial review</p>
+          <h2 className="mt-1 text-xl font-semibold">Message templates</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Reusable messages organizers can apply to the reviewer note when
+            rejecting or requesting changes on a travel reimbursement.
+          </p>
+        </div>
+        <TravelMessageTemplateForm />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {travelMessageTemplates.map((template) => (
+            <div
+              key={`${template.id}:${template.updatedAt.getTime()}`}
+              className="rounded-2xl border border-slate-200 p-4"
+            >
+              <TravelMessageTemplateForm
+                id={template.id}
+                name={template.name}
+                message={template.message}
+                active={template.active}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

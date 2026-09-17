@@ -203,6 +203,35 @@ try {
     });
   }
 
+  for (const template of [
+    {
+      name: "Wrong travel dates",
+      message:
+        "Your travel dates don't line up with the event schedule. Please update your outbound and return journeys and resubmit.",
+    },
+    {
+      name: "Missing luggage receipt",
+      message:
+        "You've marked luggage as paid separately, but we couldn't find a matching receipt on the ticket. Please resubmit with proof of the luggage cost.",
+    },
+    {
+      name: "Missing or unreadable ticket",
+      message:
+        "We couldn't verify your travel ticket. Please resubmit your request with a clear, valid ticket attached.",
+    },
+    {
+      name: "Ineligible origin",
+      message:
+        "The submitted origin doesn't match an eligible location for this event's travel reimbursement policy.",
+    },
+  ]) {
+    await prisma.travelMessageTemplate.upsert({
+      where: { name: template.name },
+      update: { message: template.message, active: true },
+      create: template,
+    });
+  }
+
   console.log("Demo accounts, travel settings, and metadata are ready.");
 } finally {
   await prisma.$disconnect();

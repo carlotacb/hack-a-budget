@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import {
   finalApproveTravel,
   reviewTravelRequest,
@@ -10,17 +10,34 @@ import {
 
 const initialState: TravelReviewState = {};
 
+type MessageTemplate = {
+  id: string;
+  name: string;
+  message: string;
+};
+
 export function TravelReviewForm({
   reimbursementId,
   submittedTotal,
   currencyCode,
+  messageTemplates = [],
 }: {
   reimbursementId: string;
   submittedTotal: string;
   currencyCode: string;
+  messageTemplates?: MessageTemplate[];
 }) {
   const action = reviewTravelRequest.bind(null, reimbursementId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+
+  function applyTemplate(event: React.ChangeEvent<HTMLSelectElement>) {
+    const message = event.target.value;
+    if (message && noteRef.current) {
+      noteRef.current.value = message;
+    }
+    event.target.value = "";
+  }
 
   return (
     <form action={formAction} className="space-y-4">
@@ -36,9 +53,23 @@ export function TravelReviewForm({
             defaultValue={submittedTotal}
           />
         </label>
+        {messageTemplates.length > 0 && (
+          <label className="field">
+            <span>Message template</span>
+            <select defaultValue="" onChange={applyTemplate}>
+              <option value="">Apply a template…</option>
+              {messageTemplates.map((template) => (
+                <option key={template.id} value={template.message}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field sm:col-span-2">
           <span>Reviewer note</span>
           <textarea
+            ref={noteRef}
             name="note"
             rows={4}
             placeholder="Required for changes or rejection; optional for approval"

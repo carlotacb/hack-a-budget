@@ -46,6 +46,18 @@ const metadataSchema = z.discriminatedUnion("operation", [
     name: z.string().trim().min(2).max(200),
     active: z.string().optional(),
   }),
+  z.object({
+    operation: z.literal("createTravelMessageTemplate"),
+    name: z.string().trim().min(2).max(100),
+    message: z.string().trim().min(1).max(2000),
+  }),
+  z.object({
+    operation: z.literal("updateTravelMessageTemplate"),
+    id: z.string().cuid(),
+    name: z.string().trim().min(2).max(100),
+    message: z.string().trim().min(1).max(2000),
+    active: z.string().optional(),
+  }),
 ]);
 
 /**
@@ -152,6 +164,21 @@ export async function saveMetadata(
         await prisma.travelFinalRequirement.update({
           where: { id: data.id },
           data: { name: data.name, active: data.active === "on" },
+        });
+        break;
+      case "createTravelMessageTemplate":
+        await prisma.travelMessageTemplate.create({
+          data: { name: data.name, message: data.message },
+        });
+        break;
+      case "updateTravelMessageTemplate":
+        await prisma.travelMessageTemplate.update({
+          where: { id: data.id },
+          data: {
+            name: data.name,
+            message: data.message,
+            active: data.active === "on",
+          },
         });
         break;
     }

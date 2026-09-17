@@ -132,6 +132,44 @@ describe("TravelReviewForm", () => {
       "Review saved.",
     );
   });
+
+  test("does not render the template picker when no templates are provided", () => {
+    render(
+      <TravelReviewForm
+        reimbursementId="r1"
+        submittedTotal="150.00"
+        currencyCode="EUR"
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText("Message template"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("applying a template fills the reviewer note, and the note stays editable", () => {
+    render(
+      <TravelReviewForm
+        reimbursementId="r1"
+        submittedTotal="150.00"
+        currencyCode="EUR"
+        messageTemplates={[
+          { id: "tpl1", name: "Missing ticket", message: "Ticket missing." },
+          { id: "tpl2", name: "Wrong dates", message: "Dates don't match." },
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Message template"), {
+      target: { value: "Ticket missing." },
+    });
+
+    const note = screen.getByLabelText("Reviewer note") as HTMLTextAreaElement;
+    expect(note.value).toBe("Ticket missing.");
+
+    fireEvent.change(note, { target: { value: "Ticket missing, edited." } });
+    expect(note.value).toBe("Ticket missing, edited.");
+  });
 });
 
 describe("FinalRequirementForms", () => {
