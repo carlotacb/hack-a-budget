@@ -3,7 +3,6 @@ import {
   Banknote,
   CircleDollarSign,
   List,
-  Plus,
   ReceiptText,
 } from "lucide-react";
 import { requireOrganizer } from "@/lib/organizer";
@@ -19,7 +18,7 @@ function percentage(value: number, total: number) {
 }
 
 export default async function OrganizerPage() {
-  const user = await requireOrganizer(["ADMIN", "DIRECTOR", "ORGANIZER"]);
+  await requireOrganizer(["ADMIN", "DIRECTOR", "ORGANIZER"]);
   const [expenses, categories, departments] = await Promise.all([
     prisma.expense.findMany({
       include: { category: true, department: true },
@@ -68,12 +67,6 @@ export default async function OrganizerPage() {
             <List size={18} />
             Expenses
           </Link>
-          {user.role === "ADMIN" && (
-            <Link href="/organizer/expenses/new" className="primary-button">
-              <Plus size={18} />
-              Add expense
-            </Link>
-          )}
         </div>
       </div>
 

@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   List,
   Plane,
-  PlusCircle,
   Settings2,
   Users,
 } from "lucide-react";
@@ -36,12 +35,6 @@ const links: {
     label: "Expenses",
     icon: List,
     roles: ["ADMIN", "DIRECTOR", "ORGANIZER"],
-  },
-  {
-    href: "/organizer/expenses/new",
-    label: "Add expense",
-    icon: PlusCircle,
-    roles: ["ADMIN"],
   },
   {
     href: "/organizer/travel-reimbursements",
