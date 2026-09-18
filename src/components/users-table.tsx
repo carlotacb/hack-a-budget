@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Info, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { UserRoleButton } from "@/components/user-role-button";
 import { roleLabels } from "@/lib/organizer";
@@ -30,6 +30,7 @@ type UsersTableProps = {
 
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState("");
+  const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
 
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -41,6 +42,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       return name.includes(normalizedQuery) || email.includes(normalizedQuery);
     });
   }, [users, query]);
+
+  const detailsUser = users.find((user) => user.id === detailsUserId) ?? null;
 
   return (
     <section className="dashboard-card">
@@ -57,49 +60,45 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left">
+        <table className="w-full min-w-[640px] text-left">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
               <th className="pb-3 font-semibold">Complete name</th>
               <th className="pb-3 font-semibold">Email</th>
-              <th className="pb-3 font-semibold">Gender</th>
-              <th className="pb-3 font-semibold">City</th>
-              <th className="pb-3 font-semibold">Major</th>
               <th className="pb-3 font-semibold">Role</th>
+              <th className="pb-3 font-semibold">
+                <span className="sr-only">Details</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredUsers.map((user) => (
               <tr key={user.id}>
                 <td className="py-4 pr-4">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-slate-900">
-                      {user.name ?? "Name not provided"}
-                    </span>
-                    <UserRoleButton
-                      key={`${user.id}-${user.role}`}
-                      userId={user.id}
-                      currentRole={user.role}
-                      isCurrentUser={user.id === currentUserId}
-                    />
-                  </div>
+                  <span className="font-medium text-slate-900">
+                    {user.name ?? "Name not provided"}
+                  </span>
                 </td>
                 <td className="py-4 pr-4 text-sm text-slate-600">
                   {user.email}
                 </td>
-                <td className="py-4 pr-4 text-sm text-slate-600">
-                  {user.gender ? genderLabels[user.gender] : "Not provided"}
+                <td className="py-4 pr-4">
+                  <UserRoleButton
+                    key={`${user.id}-${user.role}`}
+                    userId={user.id}
+                    currentRole={user.role}
+                    isCurrentUser={user.id === currentUserId}
+                  />
                 </td>
-                <td className="py-4 pr-4 text-sm text-slate-600">
-                  {user.city ?? "Not provided"}
-                </td>
-                <td className="py-4 pr-4 text-sm text-slate-600">
-                  {user.major ?? "Not provided"}
-                </td>
-                <td className="py-4">
-                  <span className={`role-badge role-badge-${user.role.toLowerCase()}`}>
-                    {roleLabels[user.role]}
-                  </span>
+                <td className="py-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setDetailsUserId(user.id)}
+                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    aria-label={`View details for ${user.name ?? user.email}`}
+                  >
+                    <Info size={18} aria-hidden="true" />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -111,6 +110,65 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           </p>
         )}
       </div>
+
+      {detailsUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-details-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3
+                id="user-details-title"
+                className="text-lg font-semibold text-slate-900"
+              >
+                {detailsUser.name ?? "Name not provided"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDetailsUserId(null)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close user details"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+            <dl className="space-y-4 p-5">
+              <Detail label="Email" value={detailsUser.email} />
+              <Detail
+                label="Role"
+                value={roleLabels[detailsUser.role]}
+              />
+              <Detail
+                label="Gender"
+                value={
+                  detailsUser.gender
+                    ? genderLabels[detailsUser.gender]
+                    : "Not provided"
+                }
+              />
+              <Detail label="City" value={detailsUser.city ?? "Not provided"} />
+              <Detail
+                label="Major"
+                value={detailsUser.major ?? "Not provided"}
+              />
+            </dl>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm font-medium text-slate-900">{value}</dd>
+    </div>
   );
 }
