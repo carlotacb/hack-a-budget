@@ -1,6 +1,7 @@
 "use client";
 
 import type { Role } from "@prisma/client";
+import { Loader2, Save } from "lucide-react";
 import { useActionState } from "react";
 import {
   updateUserRole,
@@ -82,8 +83,13 @@ export function UserRoleButton({
       <button
         className="secondary-button !h-9 !px-3 text-xs"
         disabled={pending}
+        aria-label={pending ? "Saving role..." : "Save role"}
       >
-        {pending ? "Updating..." : "Save"}
+        {pending ? (
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        ) : (
+          <Save size={14} aria-hidden="true" />
+        )}
       </button>
       {state.error && (
         <p role="alert" className="mt-1 max-w-48 text-xs text-red-600">
