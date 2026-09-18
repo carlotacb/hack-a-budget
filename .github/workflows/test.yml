@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     name: Unit tests & coverage
@@ -21,7 +25,13 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage (fails below 80%)
+        id: coverage
         run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Comment coverage report on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
 
       - name: Upload coverage report
         if: always()
@@ -30,3 +40,7 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 14
+
+      - name: Fail the job if tests or coverage thresholds failed
+        if: steps.coverage.outcome == 'failure'
+        run: exit 1
