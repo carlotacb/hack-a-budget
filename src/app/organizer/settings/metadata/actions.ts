@@ -199,7 +199,7 @@ export async function saveMetadata(
 function revalidateMetadataPaths() {
   revalidatePath("/organizer/settings/metadata");
   revalidatePath("/organizer/budget");
-  revalidatePath("/organizer/expenses/new");
+  revalidatePath("/organizer/expenses");
   revalidatePath("/organizer/travel-reimbursements");
   revalidatePath("/hacker");
 }

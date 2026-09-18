@@ -117,7 +117,7 @@ describe("saveMetadata", () => {
       "/organizer/settings/metadata",
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/budget");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/expenses/new");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/expenses");
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/organizer/travel-reimbursements",
     );

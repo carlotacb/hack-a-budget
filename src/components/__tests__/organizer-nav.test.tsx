@@ -24,7 +24,6 @@ describe("OrganizerNav", () => {
     expect(screen.getByText("Dashboard")).toBeTruthy();
     expect(screen.getByText("Expenses")).toBeTruthy();
     expect(screen.queryByText("Budget")).toBeNull();
-    expect(screen.queryByText("Add expense")).toBeNull();
     expect(screen.queryByText("Travel")).toBeNull();
     expect(screen.queryByText("Users")).toBeNull();
     expect(screen.queryByText("Metadata")).toBeNull();
@@ -37,7 +36,6 @@ describe("OrganizerNav", () => {
     expect(screen.getByText("Dashboard")).toBeTruthy();
     expect(screen.getByText("Budget")).toBeTruthy();
     expect(screen.getByText("Expenses")).toBeTruthy();
-    expect(screen.getByText("Add expense")).toBeTruthy();
     expect(screen.getByText("Travel")).toBeTruthy();
     expect(screen.getByText("Users")).toBeTruthy();
     expect(screen.getByText("Metadata")).toBeTruthy();
@@ -49,7 +47,6 @@ describe("OrganizerNav", () => {
 
     expect(screen.getByText("Budget")).toBeTruthy();
     expect(screen.getByText("Travel")).toBeTruthy();
-    expect(screen.queryByText("Add expense")).toBeNull();
     expect(screen.queryByText("Users")).toBeNull();
     expect(screen.queryByText("Metadata")).toBeNull();
   });
@@ -66,13 +63,11 @@ describe("OrganizerNav", () => {
   });
 
   test("marks a nested route active via startsWith matching", () => {
-    usePathnameMock.mockReturnValue("/organizer/expenses/new");
+    usePathnameMock.mockReturnValue("/organizer/travel-reimbursements/abc123");
     render(<OrganizerNav role="ADMIN" />);
 
-    const expensesLink = screen.getByText("Expenses").closest("a");
-    const addExpenseLink = screen.getByText("Add expense").closest("a");
+    const travelLink = screen.getByText("Travel").closest("a");
 
-    expect(expensesLink?.className).toContain("organizer-nav-link-active");
-    expect(addExpenseLink?.className).toContain("organizer-nav-link-active");
+    expect(travelLink?.className).toContain("organizer-nav-link-active");
   });
 });

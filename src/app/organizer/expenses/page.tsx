@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
+import { AddExpenseButton } from "@/components/add-expense-button";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 
@@ -10,10 +10,34 @@ const currency = new Intl.NumberFormat("en-US", {
 
 export default async function ExpenseListPage() {
   const user = await requireOrganizer(["ADMIN", "DIRECTOR", "ORGANIZER"]);
-  const expenses = await prisma.expense.findMany({
-    include: { category: true, subcategory: true, department: true },
-    orderBy: { incurredAt: "desc" },
-  });
+  const [expenses, categories, departments] = await Promise.all([
+    prisma.expense.findMany({
+      include: { category: true, subcategory: true, department: true },
+      orderBy: { incurredAt: "desc" },
+    }),
+    user.role === "ADMIN"
+      ? prisma.category.findMany({
+          where: { active: true },
+          select: {
+            id: true,
+            name: true,
+            subcategories: {
+              where: { active: true },
+              select: { id: true, name: true },
+              orderBy: { name: "asc" },
+            },
+          },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+    user.role === "ADMIN"
+      ? prisma.department.findMany({
+          where: { active: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
@@ -25,10 +49,7 @@ export default async function ExpenseListPage() {
           </h1>
         </div>
         {user.role === "ADMIN" && (
-          <Link href="/organizer/expenses/new" className="primary-button">
-            <Plus size={18} />
-            Add expense
-          </Link>
+          <AddExpenseButton categories={categories} departments={departments} />
         )}
       </div>
 
