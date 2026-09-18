@@ -75,9 +75,16 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             {filteredUsers.map((user) => (
               <tr key={user.id}>
                 <td className="py-4 pr-4">
-                  <span className="font-medium text-slate-900">
-                    {user.name ?? "Name not provided"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-slate-900">
+                      {user.name ?? "Name not provided"}
+                    </span>
+                    <span
+                      className={`role-badge role-badge-${user.role.toLowerCase()}`}
+                    >
+                      {roleLabels[user.role]}
+                    </span>
+                  </div>
                 </td>
                 <td className="py-4 pr-4 text-sm text-slate-600">
                   {user.email}
@@ -94,7 +101,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   <button
                     type="button"
                     onClick={() => setDetailsUserId(user.id)}
-                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg p-2 text-blue-500 hover:bg-blue-50 hover:text-blue-700"
                     aria-label={`View details for ${user.name ?? user.email}`}
                   >
                     <Info size={18} aria-hidden="true" />
