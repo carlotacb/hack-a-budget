@@ -36,7 +36,7 @@ describe("UserRoleButton", () => {
       name: "User role",
     }) as HTMLSelectElement;
     expect(select.value).toBe("HACKER");
-    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save role" })).toBeTruthy();
   });
 
   test("does not submit when the role is unchanged", () => {
@@ -45,7 +45,7 @@ describe("UserRoleButton", () => {
       <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save role" }));
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(updateUserRoleMock).not.toHaveBeenCalled();
@@ -61,7 +61,7 @@ describe("UserRoleButton", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {
       target: { value: "ADMIN" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save role" }));
 
     expect(confirmSpy).toHaveBeenCalledWith(
       "Change this user's role from Hacker to Admin? Their access will update immediately.",
@@ -80,7 +80,7 @@ describe("UserRoleButton", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {
       target: { value: "ADMIN" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save role" }));
 
     expect(updateUserRoleMock).not.toHaveBeenCalled();
   });
@@ -95,7 +95,7 @@ describe("UserRoleButton", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {
       target: { value: "ADMIN" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save role" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Something went wrong");
