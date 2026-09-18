@@ -73,7 +73,7 @@ export function TravelReimbursementsTable({
           </Link>
         )}
 
-        <div className="flex h-12 min-w-64 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 transition-colors focus-within:border-violet-500 focus-within:ring-3 focus-within:ring-violet-500/10">
+        <div className="ml-2 flex h-12 min-w-64 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 transition-colors focus-within:border-violet-500 focus-within:ring-3 focus-within:ring-violet-500/10">
           <Search size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
           <input
             type="search"
