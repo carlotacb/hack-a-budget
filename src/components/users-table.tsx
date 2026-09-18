@@ -119,13 +119,25 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           aria-labelledby="user-details-title"
         >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <h3
-                id="user-details-title"
-                className="text-lg font-semibold text-slate-900"
-              >
-                {detailsUser.name ?? "Name not provided"}
-              </h3>
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3
+                    id="user-details-title"
+                    className="text-lg font-semibold text-slate-900"
+                  >
+                    {detailsUser.name ?? "Name not provided"}
+                  </h3>
+                  <span
+                    className={`role-badge role-badge-${detailsUser.role.toLowerCase()}`}
+                  >
+                    {roleLabels[detailsUser.role]}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  {detailsUser.email}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setDetailsUserId(null)}
@@ -136,11 +148,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               </button>
             </div>
             <dl className="space-y-4 p-5">
-              <Detail label="Email" value={detailsUser.email} />
-              <Detail
-                label="Role"
-                value={roleLabels[detailsUser.role]}
-              />
               <Detail
                 label="Gender"
                 value={
