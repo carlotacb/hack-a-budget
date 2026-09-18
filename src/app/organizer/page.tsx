@@ -50,7 +50,7 @@ export default async function OrganizerPage() {
     .reduce((total, expense) => total + expense.amountCents, 0);
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+    <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
       <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <p className="eyebrow">Organizer dashboard</p>

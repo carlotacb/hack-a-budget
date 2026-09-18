@@ -59,7 +59,7 @@ export default async function TravelReimbursementDetailPage({
       : [];
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 px-6 py-10 lg:px-8">
+    <main className="mx-auto max-w-6xl space-y-6 px-6 py-10 lg:px-8">
       <div>
         <Link
           href="/organizer/travel-reimbursements"

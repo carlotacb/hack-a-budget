@@ -40,7 +40,7 @@ export default async function ExpenseListPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+    <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Expenses</p>
