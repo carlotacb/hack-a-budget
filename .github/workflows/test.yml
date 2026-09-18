@@ -30,6 +30,12 @@ jobs:
         # The captured output is written outside coverage/ because Vitest's
         # coverage provider clears that whole directory at startup, which
         # would delete the file out from under `tee` before we can read it.
+        # NO_COLOR keeps the captured text plain — GitHub Actions runners
+        # force ANSI colors even on piped/non-TTY stdout, which otherwise
+        # splits table text like "% Coverage report from v8" into color-coded
+        # fragments and breaks the awk match below.
+        env:
+          NO_COLOR: "1"
         run: |
           set -o pipefail
           npm run test:coverage | tee /tmp/vitest-full-output.txt
