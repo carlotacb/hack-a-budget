@@ -67,7 +67,7 @@ export default async function HackerPage() {
         luggagePrice: reimbursement.luggagePriceCents
           ? (reimbursement.luggagePriceCents / 100).toFixed(2)
           : "",
-        ticketPath: reimbursement.ticketPath,
+        ticketPath: `/api/tickets/travel/${reimbursement.id}`,
       }
     : {
         originCity: "",

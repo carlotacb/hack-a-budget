@@ -32,8 +32,11 @@ file uploads
 
 - Node.js 20.9+
 - A Postgres database — a free [Neon](https://neon.tech) project works well
-- A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store (only
-  needed to test ticket uploads)
+- A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store with
+  **private** access (only needed to test ticket uploads). Tickets are never
+  served from a public blob URL — the app streams them through an
+  authenticated route instead, checking the caller owns (or reviews) the
+  record before returning the file.
 
 ### Local development
 
@@ -61,8 +64,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 1. Create a Neon Postgres project and copy both its pooled and direct
    connection strings.
-2. Create a Blob store from the Vercel project's **Storage** tab (this sets
-   `BLOB_READ_WRITE_TOKEN` for you automatically).
+2. Create a Blob store (**private** access) from the Vercel project's
+   **Storage** tab (this sets `BLOB_READ_WRITE_TOKEN` for you automatically).
 3. Set the environment variables above in the Vercel project settings.
 4. Deploy — the build runs `prisma generate && prisma migrate deploy && next
    build`, so migrations apply automatically.
