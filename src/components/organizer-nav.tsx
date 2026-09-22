@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Banknote,
+  ChartColumn,
   LayoutDashboard,
   List,
   Plane,
@@ -40,6 +41,12 @@ const links: {
     href: "/organizer/travel-reimbursements",
     label: "Travel",
     icon: Plane,
+    roles: ["ADMIN", "DIRECTOR"],
+  },
+  {
+    href: "/organizer/travel-dashboard",
+    label: "Travel dashboard",
+    icon: ChartColumn,
     roles: ["ADMIN", "DIRECTOR"],
   },
   {
