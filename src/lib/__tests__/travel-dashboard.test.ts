@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { buildTravelDashboard, type DashboardRow } from "@/lib/travel-dashboard";
+import {
+  buildTravelDashboard,
+  combineInEur,
+  type CurrencyTotals,
+  type DashboardRow,
+} from "@/lib/travel-dashboard";
 
 function row(overrides: Partial<DashboardRow> = {}): DashboardRow {
   return {
@@ -87,5 +92,47 @@ describe("buildTravelDashboard", () => {
     const data = buildTravelDashboard([row({ status: "FINAL_APPROVED" })]);
 
     expect(data.currencies[0].paidCents).toBe(0);
+  });
+});
+
+describe("combineInEur", () => {
+  function totals(overrides: Partial<CurrencyTotals> = {}): CurrencyTotals {
+    return {
+      currency: "USD",
+      requestedCents: 1000,
+      acceptedCents: 800,
+      paidCents: 500,
+      ...overrides,
+    };
+  }
+
+  test("passes EUR amounts through unchanged", () => {
+    const result = combineInEur([totals({ currency: "EUR" })], {});
+
+    expect(result).toEqual({
+      requestedCents: 1000,
+      acceptedCents: 800,
+      paidCents: 500,
+      unconverted: [],
+    });
+  });
+
+  test("converts and sums multiple currencies using the rate table", () => {
+    const result = combineInEur(
+      [
+        totals({ currency: "EUR", requestedCents: 1000 }),
+        totals({ currency: "USD", requestedCents: 1100 }),
+      ],
+      { USD: 1.1 },
+    );
+
+    expect(result.requestedCents).toBe(2000);
+  });
+
+  test("reports currencies with no known rate instead of throwing", () => {
+    const result = combineInEur([totals({ currency: "JPY" })], {});
+
+    expect(result.unconverted).toEqual(["JPY"]);
+    expect(result.requestedCents).toBe(0);
   });
 });

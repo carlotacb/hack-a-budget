@@ -1,4 +1,5 @@
 import type { TransportMode, TravelReimbursementStatus } from "@prisma/client";
+import { toEurCents, type EurRates } from "@/lib/currency";
 
 export type DashboardRow = {
   status: TravelReimbursementStatus;
@@ -73,4 +74,46 @@ export function buildTravelDashboard(rows: DashboardRow[]) {
     ),
     transportModes: tally(submitted.map((row) => row.transportMode)),
   };
+}
+
+export type EurTotals = {
+  requestedCents: number;
+  acceptedCents: number;
+  paidCents: number;
+  /** Currency codes that had no known rate and were left out of the totals. */
+  unconverted: string[];
+};
+
+/**
+ * Combines the per-currency totals into a single EUR-equivalent figure using
+ * a live rates table (see src/lib/currency.ts). Pure and synchronous so it's
+ * easy to test — the network fetch happens separately, by the caller.
+ */
+export function combineInEur(
+  currencies: CurrencyTotals[],
+  rates: EurRates,
+): EurTotals {
+  const totals: EurTotals = {
+    requestedCents: 0,
+    acceptedCents: 0,
+    paidCents: 0,
+    unconverted: [],
+  };
+
+  for (const entry of currencies) {
+    const requested = toEurCents(entry.requestedCents, entry.currency, rates);
+    const accepted = toEurCents(entry.acceptedCents, entry.currency, rates);
+    const paid = toEurCents(entry.paidCents, entry.currency, rates);
+
+    if (requested === null || accepted === null || paid === null) {
+      totals.unconverted.push(entry.currency);
+      continue;
+    }
+
+    totals.requestedCents += requested;
+    totals.acceptedCents += accepted;
+    totals.paidCents += paid;
+  }
+
+  return totals;
 }

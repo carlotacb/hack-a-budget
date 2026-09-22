@@ -1,10 +1,11 @@
 import type { TravelReimbursementStatus } from "@prisma/client";
-import { CheckCircle2, Users, Wallet, Banknote } from "lucide-react";
+import { CheckCircle2, Users, Wallet, Banknote, Coins } from "lucide-react";
 import { BarList } from "@/components/bar-list";
+import { fetchEurRates } from "@/lib/currency";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, transportLabels, travelStatusLabels } from "@/lib/travel";
-import { buildTravelDashboard } from "@/lib/travel-dashboard";
+import { buildTravelDashboard, combineInEur } from "@/lib/travel-dashboard";
 
 const TOP_LIMIT = 8;
 
@@ -33,6 +34,8 @@ export default async function TravelDashboardPage() {
     },
   });
   const data = buildTravelDashboard(rows);
+  const eurRates = await fetchEurRates();
+  const eurTotals = eurRates ? combineInEur(data.currencies, eurRates) : null;
 
   const moneyLines = (pick: "requestedCents" | "acceptedCents" | "paidCents") =>
     data.currencies.length ? (
@@ -77,6 +80,24 @@ export default async function TravelDashboardPage() {
             {moneyLines(pick)}
           </article>
         ))}
+        <article className="metric-card">
+          <Coins />
+          <p>≈ Total requested in EUR</p>
+          {eurTotals ? (
+            <>
+              <strong>{formatMoney(eurTotals.requestedCents, "EUR")}</strong>
+              {eurTotals.unconverted.length > 0 && (
+                <p className="mt-1 text-xs text-slate-400">
+                  No rate for {eurTotals.unconverted.join(", ")} — excluded.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-slate-400">
+              Live exchange rates unavailable right now.
+            </p>
+          )}
+        </article>
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -127,6 +148,22 @@ export default async function TravelDashboardPage() {
                   </tr>
                 ))}
               </tbody>
+              {eurTotals && (
+                <tfoot className="border-t border-slate-200 text-slate-500">
+                  <tr>
+                    <td className="pt-3 font-semibold">≈ EUR</td>
+                    <td className="pt-3 text-right">
+                      {formatMoney(eurTotals.requestedCents, "EUR")}
+                    </td>
+                    <td className="pt-3 text-right">
+                      {formatMoney(eurTotals.acceptedCents, "EUR")}
+                    </td>
+                    <td className="pt-3 text-right">
+                      {formatMoney(eurTotals.paidCents, "EUR")}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           ) : (
             <p className="text-sm text-slate-500">No submitted requests yet.</p>
