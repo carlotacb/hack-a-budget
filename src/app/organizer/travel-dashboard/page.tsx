@@ -1,5 +1,5 @@
 import type { TravelReimbursementStatus } from "@prisma/client";
-import { CheckCircle2, Users, Wallet, Banknote, Coins } from "lucide-react";
+import { CheckCircle2, Users, Wallet, Banknote } from "lucide-react";
 import { BarList } from "@/components/bar-list";
 import { fetchEurRates } from "@/lib/currency";
 import { requireOrganizer } from "@/lib/organizer";
@@ -37,16 +37,10 @@ export default async function TravelDashboardPage() {
   const eurRates = await fetchEurRates();
   const eurTotals = eurRates ? combineInEur(data.currencies, eurRates) : null;
 
-  const moneyLines = (pick: "requestedCents" | "acceptedCents" | "paidCents") =>
-    data.currencies.length ? (
-      data.currencies.map((totals) => (
-        <strong key={totals.currency}>
-          {formatMoney(totals[pick], totals.currency)}
-        </strong>
-      ))
-    ) : (
-      <strong>—</strong>
-    );
+  const moneyValue = (pick: "requestedCents" | "acceptedCents" | "paidCents") => {
+    if (!eurTotals) return null;
+    return formatMoney(eurTotals[pick], "EUR");
+  };
 
   const moneyCards = [
     { label: "Total requested", pick: "requestedCents", icon: Wallet },
@@ -73,32 +67,29 @@ export default async function TravelDashboardPage() {
           <p>Hackers with a request</p>
           <strong>{data.hackerCount}</strong>
         </article>
-        {moneyCards.map(({ label, pick, icon: Icon }) => (
-          <article key={label} className="metric-card">
-            <Icon />
-            <p>{label}</p>
-            {moneyLines(pick)}
-          </article>
-        ))}
-        <article className="metric-card">
-          <Coins />
-          <p>≈ Total requested in EUR</p>
-          {eurTotals ? (
-            <>
-              <strong>{formatMoney(eurTotals.requestedCents, "EUR")}</strong>
-              {eurTotals.unconverted.length > 0 && (
+        {moneyCards.map(({ label, pick, icon: Icon }) => {
+          const value = moneyValue(pick);
+          return (
+            <article key={label} className="metric-card">
+              <Icon />
+              <p>{label} (EUR)</p>
+              {value ? (
+                <strong>{value}</strong>
+              ) : (
                 <p className="mt-1 text-xs text-slate-400">
-                  No rate for {eurTotals.unconverted.join(", ")} — excluded.
+                  Live exchange rates unavailable right now.
                 </p>
               )}
-            </>
-          ) : (
-            <p className="mt-1 text-xs text-slate-400">
-              Live exchange rates unavailable right now.
-            </p>
-          )}
-        </article>
+            </article>
+          );
+        })}
       </section>
+      {eurTotals && eurTotals.unconverted.length > 0 && (
+        <p className="mt-3 text-xs text-slate-500">
+          No live rate for {eurTotals.unconverted.join(", ")} — excluded from
+          the EUR totals above.
+        </p>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="dashboard-card">
