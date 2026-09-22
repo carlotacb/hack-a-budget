@@ -18,7 +18,8 @@ A full-stack Next.js starter for hackathons. New users always register as
   dashboard reports total utilization, category utilization, and department
   spend share.
 - Expenses include description, category/subcategory, amount, DD/MM/YYYY date,
-  vendor, department, and an optional locally stored PDF or image ticket.
+  vendor, department, and an optional PDF or image ticket, stored in Vercel
+  Blob.
 - Categories, subcategories, departments, event travel settings, and final
   approval requirements are managed from the metadata screen. Only Admin can
   edit metadata.
@@ -32,17 +33,26 @@ A full-stack Next.js starter for hackathons. New users always register as
 
 ## Local setup
 
-Requires Node.js 20.9 or newer.
+Requires Node.js 20.9 or newer, and a Postgres database (a free
+[Neon](https://neon.tech) project works well — see
+[Deploying to Vercel](#deploying-to-vercel) below for the connection string
+shape).
 
 ```bash
 npm install
 cp .env.example .env
+# fill in DATABASE_URL / DIRECT_URL in .env with your Postgres connection strings
 npm run db:deploy
 npm run db:seed
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+Uploading a ticket (expenses or travel reimbursements) requires
+`BLOB_READ_WRITE_TOKEN` in `.env` — create a Blob store in the Vercel
+dashboard's Storage tab (even for local development) and copy its token. The
+rest of the app works without it.
 
 `npm run dev` applies pending migrations and regenerates Prisma Client before
 starting Next.js, then creates a cryptographically random `AUTH_SECRET_DEV` in
@@ -68,7 +78,7 @@ The seed creates these local demo accounts:
 
 ## View the database
 
-This project uses a local SQLite database at `prisma/dev.db`.
+This project uses Postgres (Neon in production; any Postgres works locally).
 
 Open Prisma Studio (GUI):
 
@@ -78,15 +88,31 @@ npx prisma studio
 
 Then open the URL shown in the terminal (usually `http://localhost:5555`).
 
-Or inspect it with the SQLite CLI (if `sqlite3` is installed):
+Neon's own dashboard also has a SQL editor and table browser if you'd rather
+not run Prisma Studio.
 
-```bash
-sqlite3 prisma/dev.db
-.tables
-SELECT * FROM TravelReimbursement LIMIT 10;
-```
+## Deploying to Vercel
 
-Exit SQLite with `.quit`.
+1. Create a Neon Postgres project (or a branch of an existing one) and copy
+   both connection strings it gives you: the **pooled** one (host contains
+   `-pooler`) and the **direct** one.
+2. Create a Vercel Blob store from the project's **Storage** tab — this
+   provisions `BLOB_READ_WRITE_TOKEN` automatically for that project's
+   deployments.
+3. Set these environment variables in the Vercel project settings:
+   - `DATABASE_URL` — the pooled Neon connection string.
+   - `DIRECT_URL` — the direct Neon connection string (used only by
+     `prisma migrate deploy` during the build).
+   - `AUTH_SECRET` — generate with `openssl rand -base64 32`.
+   - `BLOB_READ_WRITE_TOKEN` — usually already set by step 2; add it manually
+     if you created the Blob store separately from the linked project.
+   - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — optional, for Google login.
+4. Deploy. The build script (`prisma generate && prisma migrate deploy && next
+   build`) applies migrations against `DIRECT_URL` before building, so the
+   schema is always in sync with what's committed in `prisma/migrations/`.
+5. Seed data (`npm run db:seed`) is meant for local/demo use — run it against
+   your Neon database with `DATABASE_URL`/`DIRECT_URL` pointed at it locally
+   if you want the same demo accounts, rather than as part of the deploy.
 
 ## Travel reimbursement workflow
 
@@ -118,18 +144,21 @@ Permissions are enforced independently on every travel route and server action:
 Travel reimbursements are deliberately separate from finance `Expense` records.
 Approvals do not create expenses.
 
-### Event time and local uploads
+### Event time and ticket uploads
 
 `datetime-local` values are interpreted and displayed in the deployment
 server's local timezone, which must match the hackathon/event timezone. Prisma
-stores the resulting instants consistently in SQLite. Configure the event start
-under **Metadata → Travel configuration** before testing unlock behavior.
+stores the resulting instants consistently in Postgres. Configure the event
+start under **Metadata → Travel configuration** before testing unlock
+behavior.
 
-Tickets are accepted as PDF, JPG, PNG, or WebP up to 5 MB and stored under
-`public/uploads/travel-reimbursements/` with random filenames. The entire
-`public/uploads/` directory is git-ignored. This local filesystem pattern is
-appropriate for local/demo use but is not durable on ephemeral serverless
-deployments; production should use managed object storage and malware scanning.
+Tickets are accepted as PDF, JPG, PNG, or WebP up to 5 MB and uploaded to
+Vercel Blob under a random filename (`tickets/…` for expenses,
+`travel-reimbursements/…` for travel requests); the returned public URL is
+what's stored on the record. This works the same locally and in production —
+no local filesystem writes, no malware scanning built in, so treat uploaded
+tickets as untrusted files if you add preview/rendering beyond the existing
+PDF/image viewer.
 
 The seed creates placeholder instructions and three active final requirements.
 Its event start is one hour before the first seed run so the demo flow can be

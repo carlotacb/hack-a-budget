@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { del, put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
@@ -89,8 +88,6 @@ const ticketTypes: Record<string, string> = {
   "image/webp": ".webp",
 };
 
-const travelUploadPrefix = "/uploads/travel-reimbursements/";
-
 function hasExpectedSignature(type: string, buffer: Buffer) {
   if (type === "application/pdf") {
     return buffer.subarray(0, 5).toString() === "%PDF-";
@@ -133,29 +130,21 @@ async function saveTicket(ticket: File) {
     throw new Error("The ticket contents do not match the selected file type.");
   }
 
-  const directory = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "travel-reimbursements",
+  const blob = await put(
+    `travel-reimbursements/${randomUUID()}${extension}`,
+    buffer,
+    { access: "public" },
   );
-  const filename = `${randomUUID()}${extension}`;
-  await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, filename), buffer);
-  return `${travelUploadPrefix}${filename}`;
+  return blob.url;
 }
 
 async function removeTravelTicket(ticketPath: string) {
-  if (!ticketPath.startsWith(travelUploadPrefix)) {
+  if (!ticketPath.includes("/travel-reimbursements/")) {
     return;
   }
 
-  await unlink(path.join(process.cwd(), "public", ticketPath)).catch((error) => {
-    if (
-      !(error instanceof Error && "code" in error && error.code === "ENOENT")
-    ) {
-      console.error("Failed to remove travel ticket", error);
-    }
+  await del(ticketPath).catch((error) => {
+    console.error("Failed to remove travel ticket", error);
   });
 }
 

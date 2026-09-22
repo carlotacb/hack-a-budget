@@ -14,10 +14,6 @@ package-lock.json
 # testing
 /coverage
 
-# local database
-/prisma/*.db
-/prisma/*.db-journal
-/public/uploads/
 
 # next.js
 /.next/

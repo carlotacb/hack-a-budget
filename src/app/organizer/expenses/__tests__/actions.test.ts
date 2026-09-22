@@ -25,17 +25,14 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
 }));
 
-const mkdirMock = vi.fn(async (..._args: unknown[]) => undefined);
-const writeFileMock = vi.fn(async (..._args: unknown[]) => undefined);
-const unlinkMock = vi.fn(async (..._args: unknown[]) => undefined);
-vi.mock("node:fs/promises", () => {
-  const mod = {
-    mkdir: (...args: unknown[]) => mkdirMock(...args),
-    writeFile: (...args: unknown[]) => writeFileMock(...args),
-    unlink: (...args: unknown[]) => unlinkMock(...args),
-  };
-  return { ...mod, default: mod };
-});
+const putMock = vi.fn(async (..._args: unknown[]) => ({
+  url: "https://blob.vercel-storage.com/tickets/test.pdf",
+}));
+const delMock = vi.fn(async (..._args: unknown[]) => undefined);
+vi.mock("@vercel/blob", () => ({
+  put: (...args: unknown[]) => putMock(...args),
+  del: (...args: unknown[]) => delMock(...args),
+}));
 
 const { addExpense } = await import("@/app/organizer/expenses/actions");
 
@@ -211,7 +208,7 @@ describe("addExpense", () => {
       "db error",
     );
 
-    expect(writeFileMock).toHaveBeenCalled();
-    expect(unlinkMock).toHaveBeenCalled();
+    expect(putMock).toHaveBeenCalled();
+    expect(delMock).toHaveBeenCalled();
   });
 });

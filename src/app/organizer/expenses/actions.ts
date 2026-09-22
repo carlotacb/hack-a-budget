@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { del, put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getOrganizerId } from "@/lib/organizer";
@@ -61,12 +60,11 @@ async function saveTicket(ticket: File) {
     throw new Error("Ticket must be smaller than 5 MB.");
   }
 
-  const directory = path.join(process.cwd(), "public", "uploads", "tickets");
-  const filename = `${randomUUID()}${extension}`;
-  await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, filename), Buffer.from(await ticket.arrayBuffer()));
+  const blob = await put(`tickets/${randomUUID()}${extension}`, ticket, {
+    access: "public",
+  });
 
-  return `/uploads/tickets/${filename}`;
+  return blob.url;
 }
 
 export async function addExpense(
@@ -150,11 +148,9 @@ export async function addExpense(
     });
   } catch (error) {
     if (ticketPath) {
-      await unlink(path.join(process.cwd(), "public", ticketPath)).catch(
-        (cleanupError) => {
-          console.error("Failed to remove orphaned ticket", cleanupError);
-        },
-      );
+      await del(ticketPath).catch((cleanupError) => {
+        console.error("Failed to remove orphaned ticket", cleanupError);
+      });
     }
     throw error;
   }
