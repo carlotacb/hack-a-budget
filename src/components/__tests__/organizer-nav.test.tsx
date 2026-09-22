@@ -25,6 +25,7 @@ describe("OrganizerNav", () => {
     expect(screen.getByText("Expenses")).toBeTruthy();
     expect(screen.queryByText("Budget")).toBeNull();
     expect(screen.queryByText("Travel")).toBeNull();
+    expect(screen.queryByText("Travel dashboard")).toBeNull();
     expect(screen.queryByText("Users")).toBeNull();
     expect(screen.queryByText("Metadata")).toBeNull();
   });
@@ -37,6 +38,7 @@ describe("OrganizerNav", () => {
     expect(screen.getByText("Budget")).toBeTruthy();
     expect(screen.getByText("Expenses")).toBeTruthy();
     expect(screen.getByText("Travel")).toBeTruthy();
+    expect(screen.getByText("Travel dashboard")).toBeTruthy();
     expect(screen.getByText("Users")).toBeTruthy();
     expect(screen.getByText("Metadata")).toBeTruthy();
   });
