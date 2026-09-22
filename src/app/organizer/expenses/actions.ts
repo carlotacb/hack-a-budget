@@ -61,7 +61,7 @@ async function saveTicket(ticket: File) {
   }
 
   const blob = await put(`tickets/${randomUUID()}${extension}`, ticket, {
-    access: "public",
+    access: "private",
   });
 
   return blob.url;

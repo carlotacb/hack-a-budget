@@ -125,7 +125,9 @@ export default async function TravelReimbursementDetailPage({
             service={reimbursement.returnServiceNumber}
           />
         </div>
-        <TicketViewerButton ticketPath={reimbursement.ticketPath} />
+        <TicketViewerButton
+          ticketPath={`/api/tickets/travel/${reimbursement.id}`}
+        />
       </section>
 
       {reimbursement.status === "PENDING_REVIEW" && (

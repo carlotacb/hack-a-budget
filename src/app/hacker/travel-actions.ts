@@ -133,7 +133,7 @@ async function saveTicket(ticket: File) {
   const blob = await put(
     `travel-reimbursements/${randomUUID()}${extension}`,
     buffer,
-    { access: "public" },
+    { access: "private" },
   );
   return blob.url;
 }

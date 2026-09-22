@@ -102,7 +102,7 @@ export default async function ExpenseListPage() {
                   <td className="py-4 text-right">
                     {expense.ticketPath ? (
                       <a
-                        href={expense.ticketPath}
+                        href={`/api/tickets/expense/${expense.id}`}
                         target="_blank"
                         rel="noreferrer"
                         className="font-semibold text-violet-700 hover:text-violet-900"
