@@ -14,6 +14,7 @@ import {
   currencyOptions,
   trainCompanyOptions,
 } from "@/components/constants";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: TravelFormState = {};
 
@@ -93,6 +94,7 @@ export function TravelReimbursementForm({
 
   return (
     <form action={formAction} className="space-y-7">
+<FormPendingOverlay />
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="field">
           <FieldLabel text="Origin city" required />

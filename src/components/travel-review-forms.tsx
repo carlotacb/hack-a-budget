@@ -7,6 +7,7 @@ import {
   saveRequirementChecks,
   type TravelReviewState,
 } from "@/app/organizer/travel-reimbursements/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: TravelReviewState = {};
 
@@ -41,6 +42,7 @@ export function TravelReviewForm({
 
   return (
     <form action={formAction} className="space-y-4">
+<FormPendingOverlay />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="field">
           <span>Approved reimbursement ({currencyCode})</span>
@@ -128,6 +130,7 @@ export function FinalRequirementForms({
   return (
     <div className="space-y-5">
       <form action={checkFormAction} className="space-y-4">
+<FormPendingOverlay />
         {requirements.length ? (
           requirements.map((requirement) => (
             <label
@@ -156,6 +159,7 @@ export function FinalRequirementForms({
         </button>
       </form>
       <form action={finalFormAction}>
+<FormPendingOverlay />
         <ActionResult state={finalState} success="Final approval recorded." />
         <button className="primary-button mt-3" disabled={approving}>
           {approving ? "Approving..." : "Final approve"}

@@ -137,3 +137,147 @@ describe("CategoriesBulkForm", () => {
     );
   });
 });
+
+describe("CategoriesBulkForm subcategories section", () => {
+  test("the add-subcategory form sits above the subcategory rows", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    const addForm = screen.getAllByLabelText("New name")[0].closest("form")!;
+    const firstRow = screen.getByDisplayValue("Space rental");
+
+    expect(
+      addForm.compareDocumentPosition(firstRow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  test("Hide collapses the subcategories but keeps their fields submittable", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    const [hideVenue] = screen.getAllByRole("button", { name: "Hide" });
+    fireEvent.click(hideVenue);
+
+    const row = screen.getByDisplayValue("Space rental");
+    expect(row.closest("[hidden]")).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Show" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    expect(screen.getByDisplayValue("Space rental").closest("[hidden]")).toBeNull();
+  });
+
+  test("shows how many subcategories a category has", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    expect(screen.getByText("Subcategories (1)")).toBeInTheDocument();
+    expect(screen.getByText("Subcategories (0)")).toBeInTheDocument();
+  });
+
+  test("a separator line sits between the add form and the subcategory rows", () => {
+    const { container } = render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    const hr = container.querySelector("hr")!;
+    const addForm = screen.getAllByLabelText("New name")[0].closest("form")!;
+    const firstRow = screen.getByDisplayValue("Space rental");
+
+    expect(addForm.compareDocumentPosition(hr) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(hr.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+  });
+});
+
+describe("CategoriesBulkForm delete buttons", () => {
+  test("every category and subcategory has a delete button", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete Venue" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Catering" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete Space rental" }),
+    ).toBeInTheDocument();
+  });
+
+  test("deleting a category confirms, then submits deleteCategory with its id", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Venue" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(confirmSpy.mock.calls[0][0]).toContain("subcategories");
+    expect(formData.get("operation")).toBe("deleteCategory");
+    expect(formData.get("id")).toBe("cat1");
+    confirmSpy.mockRestore();
+  });
+
+  test("deleting a subcategory submits deleteSubcategory with its id", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Space rental" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(formData.get("operation")).toBe("deleteSubcategory");
+    expect(formData.get("id")).toBe("sub1");
+    confirmSpy.mockRestore();
+  });
+
+  test("declining the confirmation deletes nothing", () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Venue" }));
+
+    expect(saveMetadataMock).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  test("shows a loading overlay while a delete is running", async () => {
+    let resolveDelete: (value: object) => void = () => {};
+    saveMetadataMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Venue" }));
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Deleting…" }),
+    ).toBeInTheDocument();
+
+    resolveDelete({ success: true });
+    await waitFor(() => {
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+    confirmSpy.mockRestore();
+  });
+});

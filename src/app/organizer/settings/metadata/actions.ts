@@ -3,6 +3,10 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  departmentCodeBase,
+  generateDepartmentCode,
+} from "@/lib/department-code";
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { parseLocalDateTime } from "@/lib/travel";
@@ -27,8 +31,19 @@ const metadataSchema = z.discriminatedUnion("operation", [
   }),
   z.object({
     operation: z.literal("createDepartment"),
-    code: z.string().trim().min(2).regex(/^[a-z0-9-]+$/i),
     name: z.string().trim().min(2),
+  }),
+  z.object({
+    operation: z.literal("deleteCategory"),
+    id: z.string().cuid(),
+  }),
+  z.object({
+    operation: z.literal("deleteSubcategory"),
+    id: z.string().cuid(),
+  }),
+  z.object({
+    operation: z.literal("deleteDepartment"),
+    id: z.string().cuid(),
   }),
   z.object({
     operation: z.literal("updateTravelSettings"),
@@ -125,11 +140,85 @@ export async function saveMetadata(
           },
         });
         break;
-      case "createDepartment":
+      case "createDepartment": {
+        const base = departmentCodeBase(data.name);
+        const existing = await prisma.department.findMany({
+          where: { code: { startsWith: base } },
+          select: { code: true },
+        });
+
         await prisma.department.create({
-          data: { code: data.code.toLowerCase(), name: data.name },
+          data: {
+            code: generateDepartmentCode(
+              data.name,
+              existing.map((department) => department.code),
+            ),
+            name: data.name,
+          },
         });
         break;
+      }
+      // Deleting a category also deletes its subcategories (cascade);
+      // expenses keep their category label and just lose the link.
+      case "deleteCategory": {
+        const expenseCount = await prisma.expense.count({
+          where: {
+            OR: [
+              { categoryId: data.id },
+              { subcategory: { categoryId: data.id } },
+            ],
+          },
+        });
+
+        if (expenseCount > 0) {
+          return {
+            error: `This category has ${expenseCount} expense${expenseCount === 1 ? "" : "s"} and can't be deleted. Mark it inactive instead.`,
+          };
+        }
+
+        await prisma.category.delete({ where: { id: data.id } });
+        break;
+      }
+      case "deleteSubcategory": {
+        const expenseCount = await prisma.expense.count({
+          where: { subcategoryId: data.id },
+        });
+
+        if (expenseCount > 0) {
+          return {
+            error: `This subcategory has ${expenseCount} expense${expenseCount === 1 ? "" : "s"} and can't be deleted. Mark it inactive instead.`,
+          };
+        }
+
+        await prisma.subcategory.delete({ where: { id: data.id } });
+        break;
+      }
+      case "deleteDepartment": {
+        const department = await prisma.department.findUnique({
+          where: { id: data.id },
+          select: { code: true },
+        });
+
+        if (!department) {
+          return { error: "That department no longer exists." };
+        }
+        if (department.code === GENERAL_DEPARTMENT_CODE) {
+          return { error: "The General department can't be deleted." };
+        }
+
+        const subcategoryCount = await prisma.subcategory.count({
+          where: { departmentId: data.id },
+        });
+
+        if (subcategoryCount > 0) {
+          return {
+            error: `This department still has ${subcategoryCount} subcategor${subcategoryCount === 1 ? "y" : "ies"}. Move them to another department first.`,
+          };
+        }
+
+        await prisma.department.delete({ where: { id: data.id } });
+        break;
+      }
       case "updateTravelSettings": {
         const hackathonStartAt = data.hackathonStartAt
           ? parseLocalDateTime(data.hackathonStartAt)
@@ -188,6 +277,18 @@ export async function saveMetadata(
       error.code === "P2002"
     ) {
       return { error: "That name or code is already in use." };
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2003"
+    ) {
+      return { error: "That item is still in use." };
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { error: "That item no longer exists." };
     }
     throw error;
   }
@@ -285,46 +386,19 @@ async function bulkUpdateDepartments(
     }
   }
 
-  for (const [id, row] of departmentRows) {
-    if (id === generalDepartment?.id) continue;
+  await prisma.$transaction(
+    Array.from(departmentRows.entries()).map(([id, row]) => {
+      const isGeneral = id === generalDepartment?.id;
 
-    if (
-      !row.code ||
-      row.code.trim().length < 2 ||
-      !/^[a-z0-9-]+$/i.test(row.code.trim())
-    ) {
-      return { error: "Each department needs a valid code." };
-    }
-  }
-
-  try {
-    await prisma.$transaction(
-      Array.from(departmentRows.entries()).map(([id, row]) => {
-        const isGeneral = id === generalDepartment?.id;
-
-        return prisma.department.update({
-          where: { id },
-          data: {
-            name: row.name.trim(),
-            ...(isGeneral
-              ? {}
-              : {
-                  code: row.code!.trim().toLowerCase(),
-                  active: row.active === "on",
-                }),
-          },
-        });
-      }),
-    );
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { error: "That code is already in use." };
-    }
-    throw error;
-  }
+      return prisma.department.update({
+        where: { id },
+        data: {
+          name: row.name.trim(),
+          ...(isGeneral ? {} : { active: row.active === "on" }),
+        },
+      });
+    }),
+  );
 
   revalidateMetadataPaths();
   return { success: true };

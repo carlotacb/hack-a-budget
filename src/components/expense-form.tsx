@@ -6,6 +6,7 @@ import {
   addExpense,
   type ExpenseFormState,
 } from "@/app/organizer/expenses/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: ExpenseFormState = {};
 
@@ -43,6 +44,7 @@ export function ExpenseForm({
 
   return (
     <form action={formAction} className="space-y-5">
+<FormPendingOverlay />
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="field sm:col-span-2">
           <span>Description</span>

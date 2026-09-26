@@ -6,6 +6,7 @@ import {
   type ProfileFormState,
   updateProfile,
 } from "@/app/profile/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: ProfileFormState = {};
 
@@ -30,6 +31,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
   return (
     <form action={formAction} className="space-y-5">
+<FormPendingOverlay />
       <label className="field">
         <span>Complete name</span>
         <input

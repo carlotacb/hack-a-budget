@@ -11,6 +11,12 @@ const subcategoryUpdateMock = vi.fn();
 const departmentCreateMock = vi.fn();
 const departmentUpdateMock = vi.fn();
 const departmentFindUniqueMock = vi.fn();
+const departmentFindManyMock = vi.fn();
+const departmentDeleteMock = vi.fn();
+const categoryDeleteMock = vi.fn();
+const subcategoryDeleteMock = vi.fn();
+const expenseCountMock = vi.fn().mockResolvedValue(0);
+const subcategoryCountMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
@@ -28,15 +34,23 @@ vi.mock("@/lib/prisma", () => ({
     category: {
       create: (...args: unknown[]) => categoryCreateMock(...args),
       update: (...args: unknown[]) => categoryUpdateMock(...args),
+      delete: (...args: unknown[]) => categoryDeleteMock(...args),
     },
     subcategory: {
       create: (...args: unknown[]) => subcategoryCreateMock(...args),
       update: (...args: unknown[]) => subcategoryUpdateMock(...args),
+      count: (...args: unknown[]) => subcategoryCountMock(...args),
+      delete: (...args: unknown[]) => subcategoryDeleteMock(...args),
+    },
+    expense: {
+      count: (...args: unknown[]) => expenseCountMock(...args),
     },
     department: {
       create: (...args: unknown[]) => departmentCreateMock(...args),
       update: (...args: unknown[]) => departmentUpdateMock(...args),
       findUnique: (...args: unknown[]) => departmentFindUniqueMock(...args),
+      findMany: (...args: unknown[]) => departmentFindManyMock(...args),
+      delete: (...args: unknown[]) => departmentDeleteMock(...args),
     },
     travelEventSettings: {
       upsert: (...args: unknown[]) => travelSettingsUpsertMock(...args),
@@ -163,20 +177,38 @@ describe("saveMetadata", () => {
     expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 
-  test("creates a department with a lowercased code", async () => {
+  test("creates a department with a code generated from the name", async () => {
     await asAdmin();
+    departmentFindManyMock.mockResolvedValueOnce([]);
 
     await saveMetadata(
       {},
-      formData({
-        operation: "createDepartment",
-        code: "OPS",
-        name: "Operations",
-      }),
+      formData({ operation: "createDepartment", name: "Operations" }),
+    );
+
+    expect(departmentFindManyMock).toHaveBeenCalledWith({
+      where: { code: { startsWith: "ope" } },
+      select: { code: true },
+    });
+    expect(departmentCreateMock).toHaveBeenCalledWith({
+      data: { code: "ope", name: "Operations" },
+    });
+  });
+
+  test("appends a number to the generated code when it's already taken", async () => {
+    await asAdmin();
+    departmentFindManyMock.mockResolvedValueOnce([
+      { code: "ope" },
+      { code: "ope2" },
+    ]);
+
+    await saveMetadata(
+      {},
+      formData({ operation: "createDepartment", name: "Operations 2" }),
     );
 
     expect(departmentCreateMock).toHaveBeenCalledWith({
-      data: { code: "ops", name: "Operations" },
+      data: { code: "ope3", name: "Operations 2" },
     });
   });
 
@@ -522,7 +554,7 @@ describe("saveMetadata bulkUpdateDepartments", () => {
     );
   });
 
-  test("errors on an invalid department code", async () => {
+  test("updates non-protected departments' name and active state", async () => {
     await asAdmin();
 
     const result = await saveMetadata(
@@ -530,29 +562,13 @@ describe("saveMetadata bulkUpdateDepartments", () => {
       formData({
         operation: "bulkUpdateDepartments",
         "department:dep1:name": "Operations",
-        "department:dep1:code": "o",
-      }),
-    );
-
-    expect(result.error).toBe("Each department needs a valid code.");
-  });
-
-  test("updates non-protected departments including code and active state", async () => {
-    await asAdmin();
-
-    const result = await saveMetadata(
-      {},
-      formData({
-        operation: "bulkUpdateDepartments",
-        "department:dep1:name": "Operations",
-        "department:dep1:code": "OPS",
         "department:dep1:active": "on",
       }),
     );
 
     expect(departmentUpdateMock).toHaveBeenCalledWith({
       where: { id: "dep1" },
-      data: { name: "Operations", code: "ops", active: true },
+      data: { name: "Operations", active: true },
     });
     expect(result).toEqual({ success: true });
   });
@@ -578,26 +594,180 @@ describe("saveMetadata bulkUpdateDepartments", () => {
     });
     expect(result).toEqual({ success: true });
   });
+});
 
-  test("returns a friendly error on a duplicate code", async () => {
+describe("saveMetadata deleteDepartment", () => {
+  const id = "clabcdefghijklmnopqrstu1";
+
+  test("deletes an unused department", async () => {
     await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
+    subcategoryCountMock.mockResolvedValueOnce(0);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteDepartment", id }),
+    );
+
+    expect(departmentDeleteMock).toHaveBeenCalledWith({ where: { id } });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("refuses to delete the protected General department", async () => {
+    await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce({ code: "general" });
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteDepartment", id }),
+    );
+
+    expect(result.error).toBe("The General department can't be deleted.");
+    expect(departmentDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses when subcategories still use the department", async () => {
+    await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
+    subcategoryCountMock.mockResolvedValueOnce(2);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteDepartment", id }),
+    );
+
+    expect(result.error).toContain("still has 2 subcategories");
+    expect(departmentDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("reports a department that no longer exists", async () => {
+    await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteDepartment", id }),
+    );
+
+    expect(result.error).toBe("That department no longer exists.");
+  });
+
+  test("turns a foreign-key race into a friendly error", async () => {
+    await asAdmin();
+    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
+    subcategoryCountMock.mockResolvedValueOnce(0);
     const { Prisma } = await import("@prisma/client");
-    transactionMock.mockRejectedValueOnce(
-      new Prisma.PrismaClientKnownRequestError("dup", {
-        code: "P2002",
+    departmentDeleteMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("fk", {
+        code: "P2003",
         clientVersion: "1",
       }),
     );
 
     const result = await saveMetadata(
       {},
-      formData({
-        operation: "bulkUpdateDepartments",
-        "department:dep1:name": "Operations",
-        "department:dep1:code": "ops",
+      formData({ operation: "deleteDepartment", id }),
+    );
+
+    expect(result.error).toBe("That item is still in use.");
+  });
+});
+
+describe("saveMetadata deleteCategory / deleteSubcategory", () => {
+  const id = "clabcdefghijklmnopqrstu1";
+
+  test("deletes a category", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(categoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/organizer/settings/metadata",
+    );
+    expect(result).toEqual({ success: true });
+  });
+
+  test("deletes a subcategory", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(subcategoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("refuses to delete a category that has expenses", async () => {
+    await asAdmin();
+    expenseCountMock.mockResolvedValueOnce(2);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toContain("2 expenses");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses to delete a subcategory that has expenses", async () => {
+    await asAdmin();
+    expenseCountMock.mockResolvedValueOnce(1);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(result.error).toContain("1 expense ");
+    expect(subcategoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects an invalid id", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id: "nope" }),
+    );
+
+    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("only admins can delete", async () => {
+    authMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toBe("Only admins can edit metadata.");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("turns a missing record into a friendly error", async () => {
+    await asAdmin();
+    const { Prisma } = await import("@prisma/client");
+    subcategoryDeleteMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("gone", {
+        code: "P2025",
+        clientVersion: "1",
       }),
     );
 
-    expect(result.error).toBe("That code is already in use.");
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(result.error).toBe("That item no longer exists.");
   });
 });

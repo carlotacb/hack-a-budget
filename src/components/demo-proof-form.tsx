@@ -7,6 +7,7 @@ import {
   type TravelFormState,
 } from "@/app/hacker/travel-actions";
 import { FormResult } from "@/components/travel-reimbursement-form";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: TravelFormState = {};
 
@@ -43,6 +44,7 @@ export function DemoProofForm({
       )}
       {open && unlocked && (
         <form action={formAction} className="space-y-4 rounded-2xl border border-slate-200 p-5">
+<FormPendingOverlay />
           <label className="field">
             <span>Project or demo URL</span>
             <input

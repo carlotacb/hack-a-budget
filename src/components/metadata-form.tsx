@@ -6,6 +6,8 @@ import {
   type MetadataFormState,
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
+import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
 
@@ -29,20 +31,15 @@ export function MetadataForm({
     saveMetadata,
     initialState,
   );
-  const isDepartment = operation === "createDepartment";
+  const showMessage = useAutoDismiss(state);
   const isSubcategory = operation === "createSubcategory";
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
+<FormPendingOverlay />
       <input type="hidden" name="operation" value={operation} />
       {categoryId && (
         <input type="hidden" name="categoryId" value={categoryId} />
-      )}
-      {isDepartment && (
-        <label className="field min-w-28 flex-1">
-          <span>Code</span>
-          <input name="code" placeholder="code" required />
-        </label>
       )}
       <label className="field min-w-40 flex-[2]">
         <span>New name</span>
@@ -63,19 +60,22 @@ export function MetadataForm({
           </select>
         </label>
       )}
-      <button
-        className="secondary-button !h-12 text-sm"
-        disabled={pending}
-        aria-label={pending ? "Adding..." : "Add"}
-      >
-        {pending ? "Adding..." : <Plus size={18} aria-hidden="true" />}
+      <button className="secondary-button !h-12 !border-violet-200 !text-violet-700 text-sm" disabled={pending}>
+        {pending ? (
+          "Adding..."
+        ) : (
+          <>
+            <Plus size={18} aria-hidden="true" />
+            Add
+          </>
+        )}
       </button>
-      {state.error && (
+      {showMessage && state.error && (
         <p role="alert" className="w-full text-xs text-red-600">
           {state.error}
         </p>
       )}
-      {state.success && (
+      {showMessage && state.success && (
         <p role="status" className="w-full text-xs text-emerald-600">
           Saved.
         </p>

@@ -36,11 +36,11 @@ describe("MetadataTabs", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Expenses" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Expense - categories" }));
 
     expect(screen.getByText("Expenses content")).toBeInTheDocument();
     expect(screen.queryByText("Travel content")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Expenses" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Expense - categories" })).toHaveAttribute(
       "aria-selected",
       "true",
     );

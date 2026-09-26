@@ -6,6 +6,11 @@ vi.mock("@/app/organizer/settings/metadata/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 
+const autoDismissMock = vi.fn((..._args: unknown[]) => true);
+vi.mock("@/components/use-auto-dismiss", () => ({
+  useAutoDismiss: (...args: unknown[]) => autoDismissMock(...args),
+}));
+
 const { DepartmentsBulkForm } = await import(
   "@/components/departments-bulk-form"
 );
@@ -19,6 +24,7 @@ const departments = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  autoDismissMock.mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -31,16 +37,29 @@ describe("DepartmentsBulkForm", () => {
 
     expect(screen.getAllByDisplayValue("HX")).toHaveLength(1);
     expect(screen.getAllByDisplayValue("Marketing")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Save changes" })).toHaveLength(1);
   });
 
-  test("disables the code input and active checkbox for the general department", () => {
+  test("does not show a code field", () => {
     render(<DepartmentsBulkForm departments={departments} />);
 
-    const codeInputs = screen.getAllByDisplayValue("general");
-    expect(codeInputs[0]).toBeDisabled();
+    expect(screen.queryByText("Code")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("hx")).not.toBeInTheDocument();
+  });
+
+  test("shows the general department as plain text: no inputs, no delete", () => {
+    render(<DepartmentsBulkForm departments={departments} />);
+
     expect(
-      screen.getByText(/Protected default department/),
+      screen.queryByRole("button", { name: "Delete General" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete HX" })).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("General")).not.toBeInTheDocument();
+    expect(screen.getByText("General")).toBeInTheDocument();
+    // Only the two editable departments have an Active checkbox.
+    expect(screen.getAllByRole("checkbox", { name: "Active" })).toHaveLength(2);
+    expect(
+      screen.getByText(/Default department/),
     ).toBeInTheDocument();
   });
 
@@ -48,38 +67,130 @@ describe("DepartmentsBulkForm", () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
       expect(saveMetadataMock).toHaveBeenCalled();
     });
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("bulkUpdateDepartments");
-    expect(formData.get("department:dep1:code")).toBe("hx");
+    expect(formData.get("department:dep1:code")).toBeNull();
     expect(formData.get("department:dep1:name")).toBe("HX");
     expect(formData.get("department:dep1:active")).toBe("on");
     expect(formData.get("department:dep2:active")).toBeNull();
     expect(formData.get("department:general-id:code")).toBeNull();
     expect(formData.get("department:general-id:active")).toBeNull();
-    expect(formData.get("department:general-id:name")).toBe("General");
+    expect(formData.get("department:general-id:name")).toBeNull();
+  });
+
+  test("deleting asks for confirmation, then submits the delete operation with the id", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(formData.get("operation")).toBe("deleteDepartment");
+    expect(formData.get("id")).toBe("dep1");
+    confirmSpy.mockRestore();
+  });
+
+  test("shows a loading overlay while a delete is in progress", async () => {
+    let resolveDelete: (value: object) => void = () => {};
+    saveMetadataMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Deleting…" }),
+    ).toBeInTheDocument();
+
+    resolveDelete({ success: true });
+    await waitFor(() => {
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+    confirmSpy.mockRestore();
+  });
+
+  test("declining the confirmation does not delete", () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    expect(saveMetadataMock).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   test("shows an error message returned from the action", async () => {
     saveMetadataMock.mockResolvedValueOnce({ error: "Nothing to save." });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing to save.",
     );
   });
 
+  test("shows 'Saved.' next to the Save changes button", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("Saved.");
+    expect(status.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Save changes" }),
+    );
+  });
+
+  test("messages are hidden once the auto-dismiss timer has expired", async () => {
+    autoDismissMock.mockReturnValue(false);
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  test("the can't-delete error appears next to the buttons too", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ error: "Still has subcategories." });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Still has subcategories.");
+    expect(alert.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Save changes" }),
+    );
+    confirmSpy.mockRestore();
+  });
+
   test("shows a success message returned from the action", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<DepartmentsBulkForm departments={departments} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
   });

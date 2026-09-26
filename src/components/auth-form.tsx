@@ -8,6 +8,7 @@ import {
   loginWithGoogle,
   register,
 } from "@/app/actions/auth";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: AuthFormState = {};
 
@@ -41,6 +42,7 @@ export function AuthForm({ mode, googleEnabled }: AuthFormProps) {
       </div>
 
       <form action={formAction} className="space-y-5">
+<FormPendingOverlay />
         {isRegister && (
           <label className="field">
             <span>Complete name</span>
@@ -138,6 +140,7 @@ export function AuthForm({ mode, googleEnabled }: AuthFormProps) {
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <form action={loginWithGoogle}>
+<FormPendingOverlay />
             <button className="secondary-button w-full">
               Continue with Google
             </button>
