@@ -60,7 +60,7 @@ export function MetadataForm({
           </select>
         </label>
       )}
-      <button className="primary-button !h-12 text-sm" disabled={pending}>
+      <button className="secondary-button !h-12 !border-violet-200 !text-violet-700 text-sm" disabled={pending}>
         {pending ? (
           "Adding..."
         ) : (
