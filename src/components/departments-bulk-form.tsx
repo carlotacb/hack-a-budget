@@ -116,7 +116,7 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
                 name="id"
                 value={department.id}
                 disabled={deleting}
-                className="secondary-button !h-12 !border-red-200 !text-red-700"
+                className="flex h-12 w-10 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 disabled:hover:bg-transparent"
                 aria-label={`Delete ${department.name}`}
                 onClick={(event) => {
                   if (
