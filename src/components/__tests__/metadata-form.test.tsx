@@ -31,15 +31,10 @@ describe("MetadataForm", () => {
     expect(screen.queryByLabelText("Code")).not.toBeInTheDocument();
   });
 
-  test("renders the code field for department operations", () => {
+  test("createDepartment asks only for a name, not a code", () => {
     render(<MetadataForm operation="createDepartment" />);
 
-    expect(screen.getByLabelText("Code")).toBeInTheDocument();
-  });
-
-  test("does not render the code field for non-department operations", () => {
-    render(<MetadataForm operation="createCategory" />);
-
+    expect(screen.getByLabelText("New name")).toBeInTheDocument();
     expect(screen.queryByLabelText("Code")).not.toBeInTheDocument();
   });
 
@@ -110,13 +105,10 @@ describe("MetadataForm", () => {
     expect(formData.get("departmentId")).toBe("dep2");
   });
 
-  test("submits createDepartment with code and name", async () => {
+  test("submits createDepartment with just the name", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<MetadataForm operation="createDepartment" />);
 
-    fireEvent.change(screen.getByLabelText("Code"), {
-      target: { value: "ops" },
-    });
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Ops" },
     });
@@ -127,7 +119,7 @@ describe("MetadataForm", () => {
     });
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("createDepartment");
-    expect(formData.get("code")).toBe("ops");
+    expect(formData.get("code")).toBeNull();
     expect(formData.get("name")).toBe("Ops");
   });
 

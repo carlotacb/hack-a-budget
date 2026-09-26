@@ -3,6 +3,10 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  departmentCodeBase,
+  generateDepartmentCode,
+} from "@/lib/department-code";
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { parseLocalDateTime } from "@/lib/travel";
@@ -27,7 +31,6 @@ const metadataSchema = z.discriminatedUnion("operation", [
   }),
   z.object({
     operation: z.literal("createDepartment"),
-    code: z.string().trim().min(2).regex(/^[a-z0-9-]+$/i),
     name: z.string().trim().min(2),
   }),
   z.object({
@@ -125,11 +128,24 @@ export async function saveMetadata(
           },
         });
         break;
-      case "createDepartment":
+      case "createDepartment": {
+        const base = departmentCodeBase(data.name);
+        const existing = await prisma.department.findMany({
+          where: { code: { startsWith: base } },
+          select: { code: true },
+        });
+
         await prisma.department.create({
-          data: { code: data.code.toLowerCase(), name: data.name },
+          data: {
+            code: generateDepartmentCode(
+              data.name,
+              existing.map((department) => department.code),
+            ),
+            name: data.name,
+          },
         });
         break;
+      }
       case "updateTravelSettings": {
         const hackathonStartAt = data.hackathonStartAt
           ? parseLocalDateTime(data.hackathonStartAt)

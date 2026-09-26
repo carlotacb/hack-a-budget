@@ -11,6 +11,7 @@ const subcategoryUpdateMock = vi.fn();
 const departmentCreateMock = vi.fn();
 const departmentUpdateMock = vi.fn();
 const departmentFindUniqueMock = vi.fn();
+const departmentFindManyMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
@@ -37,6 +38,7 @@ vi.mock("@/lib/prisma", () => ({
       create: (...args: unknown[]) => departmentCreateMock(...args),
       update: (...args: unknown[]) => departmentUpdateMock(...args),
       findUnique: (...args: unknown[]) => departmentFindUniqueMock(...args),
+      findMany: (...args: unknown[]) => departmentFindManyMock(...args),
     },
     travelEventSettings: {
       upsert: (...args: unknown[]) => travelSettingsUpsertMock(...args),
@@ -163,20 +165,38 @@ describe("saveMetadata", () => {
     expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 
-  test("creates a department with a lowercased code", async () => {
+  test("creates a department with a code generated from the name", async () => {
     await asAdmin();
+    departmentFindManyMock.mockResolvedValueOnce([]);
 
     await saveMetadata(
       {},
-      formData({
-        operation: "createDepartment",
-        code: "OPS",
-        name: "Operations",
-      }),
+      formData({ operation: "createDepartment", name: "Operations" }),
+    );
+
+    expect(departmentFindManyMock).toHaveBeenCalledWith({
+      where: { code: { startsWith: "ope" } },
+      select: { code: true },
+    });
+    expect(departmentCreateMock).toHaveBeenCalledWith({
+      data: { code: "ope", name: "Operations" },
+    });
+  });
+
+  test("appends a number to the generated code when it's already taken", async () => {
+    await asAdmin();
+    departmentFindManyMock.mockResolvedValueOnce([
+      { code: "ope" },
+      { code: "ope2" },
+    ]);
+
+    await saveMetadata(
+      {},
+      formData({ operation: "createDepartment", name: "Operations 2" }),
     );
 
     expect(departmentCreateMock).toHaveBeenCalledWith({
-      data: { code: "ops", name: "Operations" },
+      data: { code: "ope3", name: "Operations 2" },
     });
   });
 

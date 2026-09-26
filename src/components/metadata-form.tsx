@@ -29,7 +29,6 @@ export function MetadataForm({
     saveMetadata,
     initialState,
   );
-  const isDepartment = operation === "createDepartment";
   const isSubcategory = operation === "createSubcategory";
 
   return (
@@ -37,12 +36,6 @@ export function MetadataForm({
       <input type="hidden" name="operation" value={operation} />
       {categoryId && (
         <input type="hidden" name="categoryId" value={categoryId} />
-      )}
-      {isDepartment && (
-        <label className="field min-w-28 flex-1">
-          <span>Code</span>
-          <input name="code" placeholder="code" required />
-        </label>
       )}
       <label className="field min-w-40 flex-[2]">
         <span>New name</span>
