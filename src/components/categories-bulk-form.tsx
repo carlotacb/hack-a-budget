@@ -1,7 +1,7 @@
 "use client";
 
-import { Save } from "lucide-react";
-import { useActionState } from "react";
+import { ChevronDown, ChevronUp, Save } from "lucide-react";
+import { useActionState, useState } from "react";
 import {
   type MetadataFormState,
   saveMetadata,
@@ -42,6 +42,90 @@ type CategoriesBulkFormProps = {
   categories: Category[];
   departments: Department[];
 };
+
+const inactiveClasses =
+  "has-[input[type=checkbox]:not(:checked)]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:text-slate-400 has-[input[type=checkbox]:not(:checked)]:[&_input:not([type=checkbox])]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:[&_select]:bg-slate-100";
+
+function SubcategoriesSection({
+  category,
+  departments,
+}: {
+  category: Category;
+  departments: Department[];
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const Chevron = collapsed ? ChevronDown : ChevronUp;
+
+  return (
+    <div className="border-l-2 border-violet-100 pl-4">
+      <div className="flex items-center justify-between py-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Subcategories ({category.subcategories.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-expanded={!collapsed}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        >
+          <Chevron size={14} aria-hidden="true" />
+          {collapsed ? "Show" : "Hide"}
+        </button>
+      </div>
+
+      {/* Hidden rather than unmounted so collapsed rows still submit with the
+          bulk save. */}
+      <div hidden={collapsed} className="space-y-2 pb-3">
+        <MetadataForm
+          operation="createSubcategory"
+          categoryId={category.id}
+          departments={departments}
+        />
+        {category.subcategories.map((subcategory) => (
+          <div
+            key={`${subcategory.id}:${new Date(subcategory.updatedAt).getTime()}`}
+            className={`flex flex-wrap items-end gap-2 rounded-xl p-2 transition-colors ${inactiveClasses}`}
+          >
+            <label className="field min-w-40 flex-[2]">
+              <span>Name</span>
+              <input
+                form={FORM_ID}
+                name={`subcategory:${subcategory.id}:name`}
+                defaultValue={subcategory.name}
+                placeholder="Name"
+                required
+              />
+            </label>
+            <label className="field min-w-40 flex-[2]">
+              <span>Department</span>
+              <select
+                form={FORM_ID}
+                name={`subcategory:${subcategory.id}:departmentId`}
+                defaultValue={subcategory.departmentId}
+                required
+              >
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
+              <input
+                form={FORM_ID}
+                name={`subcategory:${subcategory.id}:active`}
+                type="checkbox"
+                defaultChecked={subcategory.active}
+              />
+              Active
+            </label>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function SaveButton({ pending }: { pending: boolean }) {
   return (
@@ -116,57 +200,10 @@ export function CategoriesBulkForm({
               Active
             </label>
           </div>
-          <div className="space-y-2 border-l-2 border-violet-100 pl-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Subcategories
-            </p>
-            {category.subcategories.map((subcategory) => (
-              <div
-                key={`${subcategory.id}:${new Date(subcategory.updatedAt).getTime()}`}
-                className="flex flex-wrap items-end gap-2"
-              >
-                <label className="field min-w-40 flex-[2]">
-                  <span>Name</span>
-                  <input
-                    form={FORM_ID}
-                    name={`subcategory:${subcategory.id}:name`}
-                    defaultValue={subcategory.name}
-                    placeholder="Name"
-                    required
-                  />
-                </label>
-                <label className="field min-w-40 flex-[2]">
-                  <span>Department</span>
-                  <select
-                    form={FORM_ID}
-                    name={`subcategory:${subcategory.id}:departmentId`}
-                    defaultValue={subcategory.departmentId}
-                    required
-                  >
-                    {departments.map((department) => (
-                      <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
-                  <input
-                    form={FORM_ID}
-                    name={`subcategory:${subcategory.id}:active`}
-                    type="checkbox"
-                    defaultChecked={subcategory.active}
-                  />
-                  Active
-                </label>
-              </div>
-            ))}
-            <MetadataForm
-              operation="createSubcategory"
-              categoryId={category.id}
-              departments={departments}
-            />
-          </div>
+          <SubcategoriesSection
+            category={category}
+            departments={departments}
+          />
         </article>
       ))}
 

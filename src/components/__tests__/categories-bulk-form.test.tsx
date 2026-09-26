@@ -137,3 +137,44 @@ describe("CategoriesBulkForm", () => {
     );
   });
 });
+
+describe("CategoriesBulkForm subcategories section", () => {
+  test("the add-subcategory form sits above the subcategory rows", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    const addForm = screen.getAllByLabelText("New name")[0].closest("form")!;
+    const firstRow = screen.getByDisplayValue("Space rental");
+
+    expect(
+      addForm.compareDocumentPosition(firstRow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  test("Hide collapses the subcategories but keeps their fields submittable", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    const [hideVenue] = screen.getAllByRole("button", { name: "Hide" });
+    fireEvent.click(hideVenue);
+
+    const row = screen.getByDisplayValue("Space rental");
+    expect(row.closest("[hidden]")).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Show" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    expect(screen.getByDisplayValue("Space rental").closest("[hidden]")).toBeNull();
+  });
+
+  test("shows how many subcategories a category has", () => {
+    render(
+      <CategoriesBulkForm categories={categories} departments={departments} />,
+    );
+
+    expect(screen.getByText("Subcategories (1)")).toBeInTheDocument();
+    expect(screen.getByText("Subcategories (0)")).toBeInTheDocument();
+  });
+});

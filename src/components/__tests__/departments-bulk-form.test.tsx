@@ -1,9 +1,14 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
 vi.mock("@/app/organizer/settings/metadata/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
+}));
+
+const autoDismissMock = vi.fn((..._args: unknown[]) => true);
+vi.mock("@/components/use-auto-dismiss", () => ({
+  useAutoDismiss: (...args: unknown[]) => autoDismissMock(...args),
 }));
 
 const { DepartmentsBulkForm } = await import(
@@ -19,6 +24,7 @@ const departments = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  autoDismissMock.mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -138,8 +144,7 @@ describe("DepartmentsBulkForm", () => {
     );
   });
 
-  test("shows 'Saved.' next to the Save changes button and hides it after 5 seconds", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+  test("shows 'Saved.' next to the Save changes button", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
     render(<DepartmentsBulkForm departments={departments} />);
 
@@ -150,32 +155,35 @@ describe("DepartmentsBulkForm", () => {
     expect(status.parentElement).toContainElement(
       screen.getByRole("button", { name: "Save changes" }),
     );
-
-    await act(async () => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    vi.useRealTimers();
   });
 
-  test("the can't-delete error also disappears after 5 seconds", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+  test("messages are hidden once the auto-dismiss timer has expired", async () => {
+    autoDismissMock.mockReturnValue(false);
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  test("the can't-delete error appears next to the buttons too", async () => {
     saveMetadataMock.mockResolvedValueOnce({ error: "Still has subcategories." });
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<DepartmentsBulkForm departments={departments} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Still has subcategories.",
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Still has subcategories.");
+    expect(alert.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Save changes" }),
     );
-
-    await act(async () => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     confirmSpy.mockRestore();
-    vi.useRealTimers();
   });
 
   test("shows a success message returned from the action", async () => {
