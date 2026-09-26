@@ -14,6 +14,13 @@ import { formatLocalDateTime } from "@/lib/travel";
 export default async function MetadataPage() {
   await requireOrganizer(["ADMIN"]);
 
+  // General must always exist, even on a brand-new database.
+  await prisma.department.upsert({
+    where: { code: "general" },
+    update: {},
+    create: { code: "general", name: "General" },
+  });
+
   const [
     categories,
     departments,
