@@ -1,24 +1,29 @@
-import { BudgetForm } from "@/components/budget-form";
+import { BudgetList } from "@/components/budget-list";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 
 export default async function BudgetPage() {
   await requireOrganizer(["ADMIN", "DIRECTOR"]);
 
-  const categories = await prisma.category.findMany({
-    where: { active: true },
-    select: {
-      id: true,
-      name: true,
-      budgetCents: true,
-      subcategories: {
-        where: { active: true },
-        select: { id: true, name: true, budgetCents: true },
-        orderBy: { name: "asc" },
-      },
+  const budgets = await prisma.budget.findMany({
+    include: {
+      categories: { select: { budgetCents: true } },
+      basedOn: { select: { name: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
   });
+
+  const rows = budgets.map((budget) => ({
+    id: budget.id,
+    name: budget.name,
+    isActive: budget.isActive,
+    totalCents: budget.categories.reduce(
+      (total, category) => total + category.budgetCents,
+      0,
+    ),
+    createdAt: budget.createdAt.toISOString(),
+    basedOnName: budget.basedOn?.name ?? null,
+  }));
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
@@ -28,13 +33,12 @@ export default async function BudgetPage() {
           Budget
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Set the event budget by category and refine it with subcategory
-          allocations.
+          Keep multiple budget plans, build one from scratch or start by
+          reviewing an existing plan, then activate the one that should drive
+          expense tracking.
         </p>
       </div>
-      <section className="dashboard-card">
-        <BudgetForm categories={categories} />
-      </section>
+      <BudgetList budgets={rows} />
     </main>
   );
 }
