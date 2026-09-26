@@ -3,7 +3,7 @@
 import { Info, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { UserRoleButton } from "@/components/user-role-button";
-import { roleLabels } from "@/lib/organizer";
+import { roleLabels } from "@/lib/roles";
 import type { Gender, Role } from "@prisma/client";
 
 const genderLabels: Record<Gender, string> = {
