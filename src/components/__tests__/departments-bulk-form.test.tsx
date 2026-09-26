@@ -41,18 +41,19 @@ describe("DepartmentsBulkForm", () => {
     expect(screen.queryByDisplayValue("hx")).not.toBeInTheDocument();
   });
 
-  test("protects the general department: no delete button, Active disabled", () => {
+  test("shows the general department as plain text: no inputs, no delete", () => {
     render(<DepartmentsBulkForm departments={departments} />);
 
     expect(
       screen.queryByRole("button", { name: "Delete General" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete HX" })).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("General")).not.toBeInTheDocument();
+    expect(screen.getByText("General")).toBeInTheDocument();
+    // Only the two editable departments have an Active checkbox.
+    expect(screen.getAllByRole("checkbox", { name: "Active" })).toHaveLength(2);
     expect(
-      screen.getAllByRole("checkbox", { name: "Active" })[1],
-    ).toBeDisabled();
-    expect(
-      screen.getByText(/Protected default department/),
+      screen.getByText(/Default department/),
     ).toBeInTheDocument();
   });
 
@@ -73,7 +74,7 @@ describe("DepartmentsBulkForm", () => {
     expect(formData.get("department:dep2:active")).toBeNull();
     expect(formData.get("department:general-id:code")).toBeNull();
     expect(formData.get("department:general-id:active")).toBeNull();
-    expect(formData.get("department:general-id:name")).toBe("General");
+    expect(formData.get("department:general-id:name")).toBeNull();
   });
 
   test("deleting asks for confirmation, then submits the delete operation with the id", async () => {
