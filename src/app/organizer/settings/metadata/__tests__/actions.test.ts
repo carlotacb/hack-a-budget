@@ -15,6 +15,7 @@ const departmentFindManyMock = vi.fn();
 const departmentDeleteMock = vi.fn();
 const categoryDeleteMock = vi.fn();
 const subcategoryDeleteMock = vi.fn();
+const expenseCountMock = vi.fn().mockResolvedValue(0);
 const subcategoryCountMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
@@ -40,6 +41,9 @@ vi.mock("@/lib/prisma", () => ({
       update: (...args: unknown[]) => subcategoryUpdateMock(...args),
       count: (...args: unknown[]) => subcategoryCountMock(...args),
       delete: (...args: unknown[]) => subcategoryDeleteMock(...args),
+    },
+    expense: {
+      count: (...args: unknown[]) => expenseCountMock(...args),
     },
     department: {
       create: (...args: unknown[]) => departmentCreateMock(...args),
@@ -697,6 +701,32 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
 
     expect(subcategoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
     expect(result).toEqual({ success: true });
+  });
+
+  test("refuses to delete a category that has expenses", async () => {
+    await asAdmin();
+    expenseCountMock.mockResolvedValueOnce(2);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toContain("2 expenses");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses to delete a subcategory that has expenses", async () => {
+    await asAdmin();
+    expenseCountMock.mockResolvedValueOnce(1);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(result.error).toContain("1 expense ");
+    expect(subcategoryDeleteMock).not.toHaveBeenCalled();
   });
 
   test("rejects an invalid id", async () => {

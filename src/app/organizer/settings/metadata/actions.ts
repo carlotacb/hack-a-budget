@@ -160,12 +160,39 @@ export async function saveMetadata(
       }
       // Deleting a category also deletes its subcategories (cascade);
       // expenses keep their category label and just lose the link.
-      case "deleteCategory":
+      case "deleteCategory": {
+        const expenseCount = await prisma.expense.count({
+          where: {
+            OR: [
+              { categoryId: data.id },
+              { subcategory: { categoryId: data.id } },
+            ],
+          },
+        });
+
+        if (expenseCount > 0) {
+          return {
+            error: `This category has ${expenseCount} expense${expenseCount === 1 ? "" : "s"} and can't be deleted. Mark it inactive instead.`,
+          };
+        }
+
         await prisma.category.delete({ where: { id: data.id } });
         break;
-      case "deleteSubcategory":
+      }
+      case "deleteSubcategory": {
+        const expenseCount = await prisma.expense.count({
+          where: { subcategoryId: data.id },
+        });
+
+        if (expenseCount > 0) {
+          return {
+            error: `This subcategory has ${expenseCount} expense${expenseCount === 1 ? "" : "s"} and can't be deleted. Mark it inactive instead.`,
+          };
+        }
+
         await prisma.subcategory.delete({ where: { id: data.id } });
         break;
+      }
       case "deleteDepartment": {
         const department = await prisma.department.findUnique({
           where: { id: data.id },
