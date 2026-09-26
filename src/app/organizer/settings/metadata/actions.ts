@@ -10,6 +10,11 @@ import {
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { parseLocalDateTime } from "@/lib/travel";
+import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
+import {
+  syncNewCategoryToActiveBudget,
+  syncNewSubcategoryToActiveBudget,
+} from "@/app/organizer/budget/actions";
 
 export type MetadataFormState = {
   error?: string;
@@ -128,18 +133,38 @@ export async function saveMetadata(
 
   try {
     switch (data.operation) {
-      case "createCategory":
-        await prisma.category.create({ data: { name: data.name } });
+      case "createCategory": {
+        const category = await prisma.category.create({
+          data: { name: data.name },
+        });
+        await syncNewCategoryToActiveBudget(category.id, category.name);
         break;
-      case "createSubcategory":
-        await prisma.subcategory.create({
+      }
+      case "createSubcategory": {
+        const parentCategory = await prisma.category.findUnique({
+          where: { id: data.categoryId },
+          select: { name: true },
+        });
+        if (parentCategory?.name === UNEXPECTED_CATEGORY_NAME) {
+          return {
+            error: "Unexpected expenses can't have subcategories.",
+          };
+        }
+
+        const subcategory = await prisma.subcategory.create({
           data: {
             categoryId: data.categoryId,
             name: data.name,
             departmentId: data.departmentId,
           },
         });
+        await syncNewSubcategoryToActiveBudget(
+          subcategory.id,
+          data.categoryId,
+          subcategory.name,
+        );
         break;
+      }
       case "createDepartment": {
         const base = departmentCodeBase(data.name);
         const existing = await prisma.department.findMany({
@@ -161,6 +186,18 @@ export async function saveMetadata(
       // Deleting a category also deletes its subcategories (cascade);
       // expenses keep their category label and just lose the link.
       case "deleteCategory": {
+        const category = await prisma.category.findUnique({
+          where: { id: data.id },
+          select: { name: true },
+        });
+
+        if (!category) {
+          return { error: "That category no longer exists." };
+        }
+        if (category.name === UNEXPECTED_CATEGORY_NAME) {
+          return { error: "The Unexpected expenses category can't be deleted." };
+        }
+
         const expenseCount = await prisma.expense.count({
           where: {
             OR: [
@@ -310,6 +347,16 @@ async function bulkUpdateCategories(
 ): Promise<MetadataFormState> {
   const categoryRows = collectRows(formData, "category");
   const subcategoryRows = collectRows(formData, "subcategory");
+
+  const unexpectedCategory = await prisma.category.findUnique({
+    where: { name: UNEXPECTED_CATEGORY_NAME },
+    select: { id: true },
+  });
+  // Defense in depth: the UI never renders inputs for it, but never let a
+  // crafted payload edit/deactivate the Unexpected expenses category.
+  if (unexpectedCategory) {
+    categoryRows.delete(unexpectedCategory.id);
+  }
 
   if (categoryRows.size === 0 && subcategoryRows.size === 0) {
     return { error: "Nothing to save." };

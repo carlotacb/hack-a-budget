@@ -6,6 +6,7 @@ vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 const findUniqueMock = vi.fn();
 const categoryCreateMock = vi.fn();
 const categoryUpdateMock = vi.fn();
+const categoryFindUniqueMock = vi.fn();
 const subcategoryCreateMock = vi.fn();
 const subcategoryUpdateMock = vi.fn();
 const departmentCreateMock = vi.fn();
@@ -22,6 +23,7 @@ const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
 const travelMessageTemplateCreateMock = vi.fn();
 const travelMessageTemplateUpdateMock = vi.fn();
+const budgetFindFirstMock = vi.fn().mockResolvedValue(null);
 const transactionMock = vi.fn(async (...args: unknown[]) => {
   const [ops] = args;
   if (Array.isArray(ops)) return Promise.all(ops);
@@ -34,6 +36,7 @@ vi.mock("@/lib/prisma", () => ({
     category: {
       create: (...args: unknown[]) => categoryCreateMock(...args),
       update: (...args: unknown[]) => categoryUpdateMock(...args),
+      findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args),
       delete: (...args: unknown[]) => categoryDeleteMock(...args),
     },
     subcategory: {
@@ -63,6 +66,9 @@ vi.mock("@/lib/prisma", () => ({
       create: (...args: unknown[]) => travelMessageTemplateCreateMock(...args),
       update: (...args: unknown[]) => travelMessageTemplateUpdateMock(...args),
     },
+    budget: {
+      findFirst: (...args: unknown[]) => budgetFindFirstMock(...args),
+    },
     $transaction: (...args: unknown[]) => transactionMock(...args),
   },
 }));
@@ -87,6 +93,10 @@ beforeEach(() => {
   departmentFindUniqueMock.mockResolvedValue({
     id: "general-dep-id",
     code: "general",
+  });
+  categoryFindUniqueMock.mockResolvedValue({
+    id: "cat-generic-id",
+    name: "Food",
   });
 });
 
@@ -120,6 +130,7 @@ describe("saveMetadata", () => {
 
   test("creates a category and revalidates paths", async () => {
     await asAdmin();
+    categoryCreateMock.mockResolvedValueOnce({ id: "cat1", name: "Food" });
 
     const result = await saveMetadata(
       {},
@@ -141,6 +152,10 @@ describe("saveMetadata", () => {
 
   test("creates a subcategory with a department", async () => {
     await asAdmin();
+    subcategoryCreateMock.mockResolvedValueOnce({
+      id: "sub1",
+      name: "Snacks",
+    });
 
     await saveMetadata(
       {},
@@ -523,6 +538,26 @@ describe("saveMetadata bulkUpdateCategories", () => {
 
     expect(result.error).toBe("That name is already in use.");
   });
+
+  test("ignores an Unexpected expenses row even if one is submitted", async () => {
+    await asAdmin();
+    categoryFindUniqueMock.mockResolvedValueOnce({
+      id: "unexpected-id",
+      name: "Unexpected expenses",
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "category:unexpected-id:name": "Renamed",
+        "category:unexpected-id:active": "off",
+      }),
+    );
+
+    expect(categoryUpdateMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ error: "Nothing to save." });
+  });
 });
 
 describe("saveMetadata bulkUpdateDepartments", () => {
@@ -769,5 +804,48 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
     );
 
     expect(result.error).toBe("That item no longer exists.");
+  });
+
+  test("refuses to delete the Unexpected expenses category", async () => {
+    await asAdmin();
+    categoryFindUniqueMock.mockResolvedValueOnce({
+      id,
+      name: "Unexpected expenses",
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toBe(
+      "The Unexpected expenses category can't be deleted.",
+    );
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveMetadata Unexpected expenses protections", () => {
+  test("refuses to add a subcategory under Unexpected expenses", async () => {
+    await asAdmin();
+    categoryFindUniqueMock.mockResolvedValueOnce({
+      id: "unexpected-id",
+      name: "Unexpected expenses",
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "createSubcategory",
+        categoryId: "clabcdefghijklmnopqrstu1",
+        name: "Snacks",
+        departmentId: "clabcdefghijklmnopqrstu2",
+      }),
+    );
+
+    expect(result.error).toBe(
+      "Unexpected expenses can't have subcategories.",
+    );
+    expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import {
   TravelRequirementForm,
   TravelSettingsForm,
 } from "@/components/travel-metadata-forms";
+import { ensureUnexpectedCategory } from "@/app/organizer/budget/actions";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { formatLocalDateTime } from "@/lib/travel";
@@ -20,6 +21,8 @@ export default async function MetadataPage() {
     update: {},
     create: { code: "general", name: "General" },
   });
+  // Unexpected expenses must always exist too, so it's always visible here.
+  await ensureUnexpectedCategory();
 
   const [
     categories,

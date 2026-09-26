@@ -10,6 +10,7 @@ import { MetadataForm } from "@/components/metadata-form";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
+import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
 
 const initialState: MetadataFormState = {};
 
@@ -219,7 +220,28 @@ export function CategoriesBulkForm({
         <input type="hidden" name="operation" value="bulkUpdateCategories" />
       </form>
 
-      {categories.map((category) => (
+      {categories.map((category) => {
+        const isUnexpected = category.name === UNEXPECTED_CATEGORY_NAME;
+
+        if (isUnexpected) {
+          // Always exists and can't be edited, deactivated, deleted, or
+          // given subcategories, so it's shown as plain text with no inputs.
+          return (
+            <div
+              key={category.id}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <p className="font-medium text-slate-900">{category.name}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Reserved for costs that don&apos;t fit any category — always
+                available, so it can&apos;t be edited, deactivated, deleted,
+                or given subcategories.
+              </p>
+            </div>
+          );
+        }
+
+        return (
         <article
           // Remounting when `updatedAt` changes forces uncontrolled inputs to
           // pick up the freshly-saved defaultValue. React resets a submitted
@@ -264,7 +286,8 @@ export function CategoriesBulkForm({
             deleting={deleting}
           />
         </article>
-      ))}
+        );
+      })}
 
       <div className="flex items-center justify-end gap-4">
         {error && (

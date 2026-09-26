@@ -1,18 +1,19 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
-const updateBudgetsMock = vi.fn();
+const updateBudgetAmountsMock = vi.fn();
 vi.mock("@/app/organizer/budget/actions", () => ({
-  updateBudgets: (...args: unknown[]) => updateBudgetsMock(...args),
+  updateBudgetAmounts: (...args: unknown[]) => updateBudgetAmountsMock(...args),
 }));
 
-const { BudgetForm } = await import("@/components/budget-form");
+const { BudgetPlanForm } = await import("@/components/budget-form");
 
 const categories = [
   {
     id: "cat1",
     name: "Food",
     budgetCents: 10000,
+    isUnexpected: false,
     subcategories: [
       { id: "sub1", name: "Lunch", budgetCents: 5000 },
       { id: "sub2", name: "Dinner", budgetCents: 5000 },
@@ -22,6 +23,14 @@ const categories = [
     id: "cat2",
     name: "Swag",
     budgetCents: 20000,
+    isUnexpected: false,
+    subcategories: [],
+  },
+  {
+    id: "cat3",
+    name: "Unexpected expenses",
+    budgetCents: 1000,
+    isUnexpected: true,
     subcategories: [],
   },
 ];
@@ -34,77 +43,63 @@ afterEach(() => {
   cleanup();
 });
 
-describe("BudgetForm", () => {
-  test("renders category budgets in euros", () => {
-    render(<BudgetForm categories={categories} />);
+describe("BudgetPlanForm", () => {
+  test("renders the category total as calculated from subcategories", () => {
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
 
-    expect(screen.getByLabelText("Food budget")).toHaveValue(100);
+    expect(screen.getByLabelText("Food budget")).toHaveTextContent("$100.00");
+  });
+
+  test("recalculates the category total when a subcategory changes", () => {
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
+
+    fireEvent.change(screen.getByLabelText("Lunch"), {
+      target: { value: "100" },
+    });
+
+    expect(screen.getByLabelText("Food budget")).toHaveTextContent("$150.00");
+  });
+
+  test("renders a directly editable input for categories without subcategories", () => {
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
+
     expect(screen.getByLabelText("Swag budget")).toHaveValue(200);
   });
 
-  test("renders subcategories only when present", () => {
-    render(<BudgetForm categories={categories} />);
+  test("renders the unexpected-expenses category as directly editable", () => {
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
 
-    expect(screen.getByLabelText("Lunch")).toHaveValue(50);
-    expect(screen.getByLabelText("Dinner")).toHaveValue(50);
+    expect(screen.getByLabelText("Unexpected expenses budget")).toHaveValue(10);
   });
 
-  test("updates values as the user types", () => {
-    render(<BudgetForm categories={categories} />);
+  test("submits subcategory and direct category fields with correct names", async () => {
+    updateBudgetAmountsMock.mockResolvedValueOnce({ success: true });
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
 
-    const input = screen.getByLabelText("Food budget");
-    fireEvent.change(input, { target: { value: "150" } });
-
-    expect(input).toHaveValue(150);
-  });
-
-  test("submits category and subcategory fields with correct names", async () => {
-    updateBudgetsMock.mockResolvedValueOnce({ success: true });
-    render(<BudgetForm categories={categories} />);
-
-    fireEvent.change(screen.getByLabelText("Food budget"), {
+    fireEvent.change(screen.getByLabelText("Lunch"), {
+      target: { value: "60.00" },
+    });
+    fireEvent.change(screen.getByLabelText("Swag budget"), {
       target: { value: "150.50" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save budgets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save budget" }));
 
     await waitFor(() => {
-      expect(updateBudgetsMock).toHaveBeenCalled();
+      expect(updateBudgetAmountsMock).toHaveBeenCalled();
     });
-    const formData = updateBudgetsMock.mock.calls[0][1] as FormData;
-    expect(formData.get("category:cat1")).toBe("150.50");
-    expect(formData.get("category:cat2")).toBe("200.00");
-    expect(formData.get("subcategory:sub1")).toBe("50.00");
-    expect(formData.get("subcategory:sub2")).toBe("50.00");
-  });
-
-  test("disables the submit button and shows saving label while pending", async () => {
-    let resolveUpdate: (value: object) => void = () => {};
-    updateBudgetsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveUpdate = resolve;
-      }),
-    );
-    render(<BudgetForm categories={categories} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Save budgets" }));
-
-    expect(
-      await screen.findByRole("button", { name: "Saving..." }),
-    ).toBeDisabled();
-
-    resolveUpdate({ success: true });
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Save budgets" }),
-      ).not.toBeDisabled();
-    });
+    const formData = updateBudgetAmountsMock.mock.calls[0][1] as FormData;
+    expect(formData.get("budgetId")).toBe("budget1");
+    expect(formData.get("budgetSubcategory:sub1")).toBe("60.00");
+    expect(formData.get("budgetSubcategory:sub2")).toBe("50.00");
+    expect(formData.get("budgetCategory:cat2")).toBe("150.50");
+    expect(formData.get("budgetCategory:cat1")).toBeNull();
   });
 
   test("shows an error message returned from the action", async () => {
-    updateBudgetsMock.mockResolvedValueOnce({ error: "Invalid budget." });
-    render(<BudgetForm categories={categories} />);
+    updateBudgetAmountsMock.mockResolvedValueOnce({ error: "Invalid budget." });
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save budgets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save budget" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Invalid budget.",
@@ -112,19 +107,41 @@ describe("BudgetForm", () => {
   });
 
   test("shows a success message returned from the action", async () => {
-    updateBudgetsMock.mockResolvedValueOnce({ success: true });
-    render(<BudgetForm categories={categories} />);
+    updateBudgetAmountsMock.mockResolvedValueOnce({ success: true });
+    render(<BudgetPlanForm budgetId="budget1" categories={categories} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save budgets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save budget" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Budgets updated.",
+      "Budget updated.",
     );
   });
 
-  test("renders no subcategory grid when the category has none", () => {
-    render(<BudgetForm categories={[categories[1]]} />);
+  test("shows already spent amounts next to categories and subcategories", () => {
+    const categoriesWithSpend = [
+      {
+        id: "cat2",
+        name: "Swag",
+        budgetCents: 20000,
+        isUnexpected: false,
+        spentCents: 1234,
+        subcategories: [],
+      },
+      {
+        id: "cat1",
+        name: "Food",
+        budgetCents: 10000,
+        isUnexpected: false,
+        subcategories: [
+          { id: "sub1", name: "Lunch", budgetCents: 5000, spentCents: 2500 },
+        ],
+      },
+    ];
+    render(
+      <BudgetPlanForm budgetId="budget1" categories={categoriesWithSpend} />,
+    );
 
-    expect(screen.queryByLabelText("Lunch")).not.toBeInTheDocument();
+    expect(screen.getByText(/\$12\.34 already spent/)).toBeInTheDocument();
+    expect(screen.getByText(/\$25\.00 already/)).toBeInTheDocument();
   });
 });

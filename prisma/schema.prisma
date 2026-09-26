@@ -120,31 +120,79 @@ model Expense {
 }
 
 model Category {
-  id            String        @id @default(cuid())
-  name          String        @unique
-  budgetCents   Int           @default(0)
-  active        Boolean       @default(true)
-  subcategories Subcategory[]
-  expenses      Expense[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String           @id @default(cuid())
+  name            String           @unique
+  budgetCents     Int              @default(0)
+  active          Boolean          @default(true)
+  subcategories   Subcategory[]
+  expenses        Expense[]
+  budgetCategories BudgetCategory[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Subcategory {
-  id           String     @id @default(cuid())
-  name         String
-  budgetCents  Int        @default(0)
-  active       Boolean    @default(true)
-  categoryId   String
-  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  expenses     Expense[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id              String              @id @default(cuid())
+  name            String
+  budgetCents     Int                 @default(0)
+  active          Boolean             @default(true)
+  categoryId      String
+  category        Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  departmentId    String
+  department      Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  expenses        Expense[]
+  budgetSubcategories BudgetSubcategory[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@unique([categoryId, name])
   @@index([departmentId])
+}
+
+model Budget {
+  id         String           @id @default(cuid())
+  name       String
+  isActive   Boolean          @default(false)
+  basedOnId  String?
+  basedOn    Budget?          @relation("BudgetRevision", fields: [basedOnId], references: [id], onDelete: SetNull)
+  revisions  Budget[]         @relation("BudgetRevision")
+  categories BudgetCategory[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([basedOnId])
+}
+
+model BudgetCategory {
+  id            String              @id @default(cuid())
+  budgetId      String
+  budget        Budget              @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name          String
+  budgetCents   Int                 @default(0)
+  isUnexpected  Boolean             @default(false)
+  subcategories BudgetSubcategory[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([budgetId])
+  @@index([categoryId])
+}
+
+model BudgetSubcategory {
+  id               String         @id @default(cuid())
+  budgetCategoryId String
+  budgetCategory   BudgetCategory @relation(fields: [budgetCategoryId], references: [id], onDelete: Cascade)
+  subcategoryId    String?
+  subcategory      Subcategory?   @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  name             String
+  budgetCents      Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([budgetCategoryId])
+  @@index([subcategoryId])
 }
 
 model Department {
