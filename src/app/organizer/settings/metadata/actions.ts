@@ -10,6 +10,10 @@ import {
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { parseLocalDateTime } from "@/lib/travel";
+import {
+  syncNewCategoryToActiveBudget,
+  syncNewSubcategoryToActiveBudget,
+} from "@/app/organizer/budget/actions";
 
 export type MetadataFormState = {
   error?: string;
@@ -128,18 +132,28 @@ export async function saveMetadata(
 
   try {
     switch (data.operation) {
-      case "createCategory":
-        await prisma.category.create({ data: { name: data.name } });
+      case "createCategory": {
+        const category = await prisma.category.create({
+          data: { name: data.name },
+        });
+        await syncNewCategoryToActiveBudget(category.id, category.name);
         break;
-      case "createSubcategory":
-        await prisma.subcategory.create({
+      }
+      case "createSubcategory": {
+        const subcategory = await prisma.subcategory.create({
           data: {
             categoryId: data.categoryId,
             name: data.name,
             departmentId: data.departmentId,
           },
         });
+        await syncNewSubcategoryToActiveBudget(
+          subcategory.id,
+          data.categoryId,
+          subcategory.name,
+        );
         break;
+      }
       case "createDepartment": {
         const base = departmentCodeBase(data.name);
         const existing = await prisma.department.findMany({

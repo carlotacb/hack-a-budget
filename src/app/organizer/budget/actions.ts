@@ -69,6 +69,27 @@ async function syncActiveBudget(tx: Tx, budgetId: string) {
   }
 }
 
+/** Recomputes a budget category's total from the sum of its subcategories
+ * (categories with no subcategories keep whatever was set directly). */
+async function recalculateBudgetCategoryTotal(tx: Tx, budgetCategoryId: string) {
+  const category = await tx.budgetCategory.findUnique({
+    where: { id: budgetCategoryId },
+    include: { subcategories: true },
+  });
+  if (!category || category.subcategories.length === 0) return;
+
+  const total = category.subcategories.reduce(
+    (sum, subcategory) => sum + subcategory.budgetCents,
+    0,
+  );
+  if (total !== category.budgetCents) {
+    await tx.budgetCategory.update({
+      where: { id: budgetCategoryId },
+      data: { budgetCents: total },
+    });
+  }
+}
+
 async function createBudgetPlan(
   name: string,
   sourceBudgetId: string | null,
@@ -154,6 +175,86 @@ async function createBudgetPlan(
 
   revalidateBudgetPaths();
   return { success: true };
+}
+
+/** New categories/subcategories only exist going forward, so they're added
+ * to the currently active budget plan (if any) rather than every draft.
+ * Keeps the active plan's shape in sync with what expenses can be logged
+ * against, without silently mutating budgets someone else is drafting. */
+export async function syncNewCategoryToActiveBudget(
+  categoryId: string,
+  name: string,
+) {
+  const activeBudget = await prisma.budget.findFirst({
+    where: { isActive: true },
+  });
+  if (!activeBudget) return;
+
+  const existing = await prisma.budgetCategory.findFirst({
+    where: { budgetId: activeBudget.id, categoryId },
+  });
+  if (existing) return;
+
+  await prisma.budgetCategory.create({
+    data: {
+      budgetId: activeBudget.id,
+      categoryId,
+      name,
+      budgetCents: 0,
+      isUnexpected: false,
+    },
+  });
+}
+
+export async function syncNewSubcategoryToActiveBudget(
+  subcategoryId: string,
+  categoryId: string,
+  name: string,
+) {
+  const activeBudget = await prisma.budget.findFirst({
+    where: { isActive: true },
+  });
+  if (!activeBudget) return;
+
+  await prisma.$transaction(async (tx) => {
+    let budgetCategory = await tx.budgetCategory.findFirst({
+      where: { budgetId: activeBudget.id, categoryId },
+    });
+
+    if (!budgetCategory) {
+      const category = await tx.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!category) return;
+
+      budgetCategory = await tx.budgetCategory.create({
+        data: {
+          budgetId: activeBudget.id,
+          categoryId,
+          name: category.name,
+          budgetCents: 0,
+          isUnexpected: false,
+        },
+      });
+    }
+
+    const existingSubcategory = await tx.budgetSubcategory.findFirst({
+      where: { budgetCategoryId: budgetCategory.id, subcategoryId },
+    });
+    if (existingSubcategory) return;
+
+    await tx.budgetSubcategory.create({
+      data: {
+        budgetCategoryId: budgetCategory.id,
+        subcategoryId,
+        name,
+        budgetCents: 0,
+      },
+    });
+
+    await recalculateBudgetCategoryTotal(tx, budgetCategory.id);
+    await syncActiveBudget(tx, activeBudget.id);
+  });
 }
 
 export async function manageBudgets(

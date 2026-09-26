@@ -20,6 +20,7 @@ type Subcategory = {
   id: string;
   name: string;
   budgetCents: number;
+  spentCents?: number;
 };
 
 type Category = {
@@ -27,6 +28,7 @@ type Category = {
   name: string;
   budgetCents: number;
   isUnexpected: boolean;
+  spentCents?: number;
   subcategories: Subcategory[];
 };
 
@@ -119,6 +121,11 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
                     required
                   />
                 </label>
+                {typeof category.spentCents === "number" && (
+                  <p className="mt-1 text-xs font-normal text-slate-500">
+                    {currency.format(category.spentCents / 100)} already spent
+                  </p>
+                )}
                 {category.isUnexpected && (
                   <p className="mt-1 text-xs font-normal text-slate-500">
                     Reserved for costs that don&apos;t fit any category.
@@ -146,6 +153,12 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
                       }
                       required
                     />
+                    {typeof subcategory.spentCents === "number" && (
+                      <span className="text-xs font-normal text-slate-500">
+                        {currency.format(subcategory.spentCents / 100)} already
+                        spent
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>

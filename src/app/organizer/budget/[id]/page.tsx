@@ -13,21 +13,59 @@ export default async function BudgetPlanPage({
   await requireOrganizer(["ADMIN", "DIRECTOR"]);
   const { id } = await params;
 
-  const budget = await prisma.budget.findUnique({
-    where: { id },
-    include: {
-      categories: {
-        include: {
-          subcategories: { orderBy: { name: "asc" } },
+  const [budget, spendBySubcategory, spendByCategory] = await Promise.all([
+    prisma.budget.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          include: {
+            subcategories: { orderBy: { name: "asc" } },
+          },
+          orderBy: [{ isUnexpected: "asc" }, { name: "asc" }],
         },
-        orderBy: [{ isUnexpected: "asc" }, { name: "asc" }],
       },
-    },
-  });
+    }),
+    prisma.expense.groupBy({
+      by: ["subcategoryId"],
+      _sum: { amountCents: true },
+      where: { subcategoryId: { not: null } },
+    }),
+    prisma.expense.groupBy({
+      by: ["categoryId"],
+      _sum: { amountCents: true },
+      where: { categoryId: { not: null } },
+    }),
+  ]);
 
   if (!budget) {
     notFound();
   }
+
+  const spentBySubcategoryId = new Map(
+    spendBySubcategory.map((row) => [
+      row.subcategoryId as string,
+      row._sum.amountCents ?? 0,
+    ]),
+  );
+  const spentByCategoryId = new Map(
+    spendByCategory.map((row) => [
+      row.categoryId as string,
+      row._sum.amountCents ?? 0,
+    ]),
+  );
+
+  const categories = budget.categories.map((category) => ({
+    ...category,
+    spentCents: category.categoryId
+      ? (spentByCategoryId.get(category.categoryId) ?? 0)
+      : 0,
+    subcategories: category.subcategories.map((subcategory) => ({
+      ...subcategory,
+      spentCents: subcategory.subcategoryId
+        ? (spentBySubcategoryId.get(subcategory.subcategoryId) ?? 0)
+        : 0,
+    })),
+  }));
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
@@ -50,7 +88,7 @@ export default async function BudgetPlanPage({
         </p>
       </div>
       <section className="dashboard-card">
-        <BudgetPlanForm budgetId={budget.id} categories={budget.categories} />
+        <BudgetPlanForm budgetId={budget.id} categories={categories} />
       </section>
     </main>
   );

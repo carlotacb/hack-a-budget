@@ -5,6 +5,7 @@ vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
 const userFindUniqueMock = vi.fn();
 const budgetFindUniqueMock = vi.fn();
+const budgetFindFirstMock = vi.fn();
 const budgetCreateMock = vi.fn();
 const budgetUpdateMock = vi.fn();
 const budgetUpdateManyMock = vi.fn();
@@ -15,7 +16,12 @@ const categoryCreateMock = vi.fn();
 const categoryUpdateMock = vi.fn();
 const subcategoryUpdateMock = vi.fn();
 const budgetCategoryFindManyMock = vi.fn();
+const budgetCategoryFindFirstMock = vi.fn();
+const budgetCategoryFindUniqueMock = vi.fn();
+const budgetCategoryCreateMock = vi.fn();
 const budgetCategoryUpdateMock = vi.fn();
+const budgetSubcategoryFindFirstMock = vi.fn();
+const budgetSubcategoryCreateMock = vi.fn();
 const budgetSubcategoryUpdateMock = vi.fn();
 
 const tx = {
@@ -24,6 +30,7 @@ const tx = {
     update: (...args: unknown[]) => budgetUpdateMock(...args),
     updateMany: (...args: unknown[]) => budgetUpdateManyMock(...args),
     findUnique: (...args: unknown[]) => budgetFindUniqueMock(...args),
+    findFirst: (...args: unknown[]) => budgetFindFirstMock(...args),
     delete: (...args: unknown[]) => budgetDeleteMock(...args),
   },
   category: {
@@ -37,9 +44,14 @@ const tx = {
   },
   budgetCategory: {
     findMany: (...args: unknown[]) => budgetCategoryFindManyMock(...args),
+    findFirst: (...args: unknown[]) => budgetCategoryFindFirstMock(...args),
+    findUnique: (...args: unknown[]) => budgetCategoryFindUniqueMock(...args),
+    create: (...args: unknown[]) => budgetCategoryCreateMock(...args),
     update: (...args: unknown[]) => budgetCategoryUpdateMock(...args),
   },
   budgetSubcategory: {
+    findFirst: (...args: unknown[]) => budgetSubcategoryFindFirstMock(...args),
+    create: (...args: unknown[]) => budgetSubcategoryCreateMock(...args),
     update: (...args: unknown[]) => budgetSubcategoryUpdateMock(...args),
   },
 };
@@ -64,7 +76,12 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
-const { manageBudgets, updateBudgetAmounts } = await import(
+const {
+  manageBudgets,
+  updateBudgetAmounts,
+  syncNewCategoryToActiveBudget,
+  syncNewSubcategoryToActiveBudget,
+} = await import(
   "@/app/organizer/budget/actions"
 );
 
@@ -404,5 +421,111 @@ describe("updateBudgetAmounts", () => {
       data: { budgetCents: 500 },
     });
     expect(result).toEqual({ success: true });
+  });
+});
+
+describe("syncNewCategoryToActiveBudget", () => {
+  test("does nothing when there is no active budget", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce(null);
+
+    await syncNewCategoryToActiveBudget("cat1", "Food");
+
+    expect(budgetCategoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("does nothing when the category already exists on the active budget", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
+    budgetCategoryFindFirstMock.mockResolvedValueOnce({ id: "bc1" });
+
+    await syncNewCategoryToActiveBudget("cat1", "Food");
+
+    expect(budgetCategoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("adds a new budget category to the active budget", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
+    budgetCategoryFindFirstMock.mockResolvedValueOnce(null);
+
+    await syncNewCategoryToActiveBudget("cat1", "Food");
+
+    expect(budgetCategoryCreateMock).toHaveBeenCalledWith({
+      data: {
+        budgetId: "budget1",
+        categoryId: "cat1",
+        name: "Food",
+        budgetCents: 0,
+        isUnexpected: false,
+      },
+    });
+  });
+});
+
+describe("syncNewSubcategoryToActiveBudget", () => {
+  test("does nothing when there is no active budget", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce(null);
+
+    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  test("creates the subcategory under an existing budget category and recalculates totals", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
+    budgetCategoryFindFirstMock.mockResolvedValueOnce({ id: "bc1" });
+    budgetSubcategoryFindFirstMock.mockResolvedValueOnce(null);
+    budgetCategoryFindUniqueMock.mockResolvedValueOnce({
+      id: "bc1",
+      budgetCents: 0,
+      subcategories: [{ budgetCents: 0 }],
+    });
+    budgetCategoryFindManyMock.mockResolvedValueOnce([]);
+
+    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+
+    expect(budgetSubcategoryCreateMock).toHaveBeenCalledWith({
+      data: {
+        budgetCategoryId: "bc1",
+        subcategoryId: "sub1",
+        name: "Snacks",
+        budgetCents: 0,
+      },
+    });
+  });
+
+  test("creates the parent budget category first when it doesn't exist yet", async () => {
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
+    budgetCategoryFindFirstMock.mockResolvedValueOnce(null);
+    categoryFindUniqueMock.mockResolvedValueOnce({
+      id: "cat1",
+      name: "Food",
+    });
+    budgetCategoryCreateMock.mockResolvedValueOnce({ id: "bc-new" });
+    budgetSubcategoryFindFirstMock.mockResolvedValueOnce(null);
+    budgetCategoryFindUniqueMock.mockResolvedValueOnce({
+      id: "bc-new",
+      budgetCents: 0,
+      subcategories: [{ budgetCents: 0 }],
+    });
+    budgetCategoryFindManyMock.mockResolvedValueOnce([]);
+
+    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+
+    expect(budgetCategoryCreateMock).toHaveBeenCalledWith({
+      data: {
+        budgetId: "budget1",
+        categoryId: "cat1",
+        name: "Food",
+        budgetCents: 0,
+        isUnexpected: false,
+      },
+    });
+    expect(budgetSubcategoryCreateMock).toHaveBeenCalledWith({
+      data: {
+        budgetCategoryId: "bc-new",
+        subcategoryId: "sub1",
+        name: "Snacks",
+        budgetCents: 0,
+      },
+    });
   });
 });

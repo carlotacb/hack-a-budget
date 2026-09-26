@@ -7,6 +7,7 @@ import {
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
+import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
@@ -70,16 +71,8 @@ export function MetadataForm({
           </>
         )}
       </button>
-      {showMessage && state.error && (
-        <p role="alert" className="w-full text-xs text-red-600">
-          {state.error}
-        </p>
-      )}
-      {showMessage && state.success && (
-        <p role="status" className="w-full text-xs text-emerald-600">
-          Saved.
-        </p>
-      )}
+      {showMessage && state.error && <Toast kind="error">{state.error}</Toast>}
+      {showMessage && state.success && <Toast kind="success">Saved.</Toast>}
     </form>
   );
 }

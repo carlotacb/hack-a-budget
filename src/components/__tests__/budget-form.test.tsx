@@ -116,4 +116,32 @@ describe("BudgetPlanForm", () => {
       "Budget updated.",
     );
   });
+
+  test("shows already spent amounts next to categories and subcategories", () => {
+    const categoriesWithSpend = [
+      {
+        id: "cat2",
+        name: "Swag",
+        budgetCents: 20000,
+        isUnexpected: false,
+        spentCents: 1234,
+        subcategories: [],
+      },
+      {
+        id: "cat1",
+        name: "Food",
+        budgetCents: 10000,
+        isUnexpected: false,
+        subcategories: [
+          { id: "sub1", name: "Lunch", budgetCents: 5000, spentCents: 2500 },
+        ],
+      },
+    ];
+    render(
+      <BudgetPlanForm budgetId="budget1" categories={categoriesWithSpend} />,
+    );
+
+    expect(screen.getByText(/\$12\.34 already spent/)).toBeInTheDocument();
+    expect(screen.getByText(/\$25\.00 already/)).toBeInTheDocument();
+  });
 });

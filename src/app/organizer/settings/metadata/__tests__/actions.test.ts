@@ -22,6 +22,7 @@ const travelRequirementCreateMock = vi.fn();
 const travelRequirementUpdateMock = vi.fn();
 const travelMessageTemplateCreateMock = vi.fn();
 const travelMessageTemplateUpdateMock = vi.fn();
+const budgetFindFirstMock = vi.fn().mockResolvedValue(null);
 const transactionMock = vi.fn(async (...args: unknown[]) => {
   const [ops] = args;
   if (Array.isArray(ops)) return Promise.all(ops);
@@ -62,6 +63,9 @@ vi.mock("@/lib/prisma", () => ({
     travelMessageTemplate: {
       create: (...args: unknown[]) => travelMessageTemplateCreateMock(...args),
       update: (...args: unknown[]) => travelMessageTemplateUpdateMock(...args),
+    },
+    budget: {
+      findFirst: (...args: unknown[]) => budgetFindFirstMock(...args),
     },
     $transaction: (...args: unknown[]) => transactionMock(...args),
   },
@@ -120,6 +124,7 @@ describe("saveMetadata", () => {
 
   test("creates a category and revalidates paths", async () => {
     await asAdmin();
+    categoryCreateMock.mockResolvedValueOnce({ id: "cat1", name: "Food" });
 
     const result = await saveMetadata(
       {},
@@ -141,6 +146,10 @@ describe("saveMetadata", () => {
 
   test("creates a subcategory with a department", async () => {
     await asAdmin();
+    subcategoryCreateMock.mockResolvedValueOnce({
+      id: "sub1",
+      name: "Snacks",
+    });
 
     await saveMetadata(
       {},
