@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Save } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { useActionState, useState } from "react";
 import {
   type MetadataFormState,
@@ -8,6 +8,7 @@ import {
 } from "@/app/organizer/settings/metadata/actions";
 import { MetadataForm } from "@/components/metadata-form";
 import { FormPendingOverlay } from "@/components/loading-overlay";
+import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
 
@@ -16,6 +17,39 @@ const initialState: MetadataFormState = {};
 // still nest its own standalone "Add subcategory" form without producing
 // invalid nested <form> elements.
 const FORM_ID = "categories-bulk-form";
+const DELETE_CATEGORY_FORM_ID = "delete-category-form";
+const DELETE_SUBCATEGORY_FORM_ID = "delete-subcategory-form";
+
+function DeleteButton({
+  formId,
+  id,
+  label,
+  message,
+  disabled,
+}: {
+  formId: string;
+  id: string;
+  label: string;
+  message: string;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="submit"
+      form={formId}
+      name="id"
+      value={id}
+      disabled={disabled}
+      className="secondary-button !h-12 !border-red-200 !text-red-700"
+      aria-label={label}
+      onClick={(event) => {
+        if (!window.confirm(message)) event.preventDefault();
+      }}
+    >
+      <Trash2 size={18} aria-hidden="true" />
+    </button>
+  );
+}
 
 type Department = {
   id: string;
@@ -49,9 +83,11 @@ const inactiveClasses =
 function SubcategoriesSection({
   category,
   departments,
+  deleting,
 }: {
   category: Category;
   departments: Department[];
+  deleting: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const Chevron = collapsed ? ChevronDown : ChevronUp;
@@ -81,6 +117,7 @@ function SubcategoriesSection({
           categoryId={category.id}
           departments={departments}
         />
+        <hr className="!my-4 border-slate-200" />
         {category.subcategories.map((subcategory) => (
           <div
             key={`${subcategory.id}:${new Date(subcategory.updatedAt).getTime()}`}
@@ -120,6 +157,13 @@ function SubcategoriesSection({
               />
               Active
             </label>
+            <DeleteButton
+              formId={DELETE_SUBCATEGORY_FORM_ID}
+              id={subcategory.id}
+              label={`Delete ${subcategory.name}`}
+              message={`Delete the ${subcategory.name} subcategory? Its budget is deleted too; expenses keep their category label.`}
+              disabled={deleting}
+            />
           </div>
         ))}
       </div>
@@ -149,6 +193,21 @@ export function CategoriesBulkForm({
     saveMetadata,
     initialState,
   );
+  const [categoryDeleteState, deleteCategoryAction, deletingCategory] =
+    useActionState(saveMetadata, initialState);
+  const [subcategoryDeleteState, deleteSubcategoryAction, deletingSubcategory] =
+    useActionState(saveMetadata, initialState);
+  const deleting = deletingCategory || deletingSubcategory;
+  const results = [
+    { state, show: useAutoDismiss(state) },
+    { state: categoryDeleteState, show: useAutoDismiss(categoryDeleteState) },
+    {
+      state: subcategoryDeleteState,
+      show: useAutoDismiss(subcategoryDeleteState),
+    },
+  ].filter((result) => result.show);
+  const error = results.find((result) => result.state.error)?.state.error;
+  const saved = !error && results.some((result) => result.state.success);
 
   return (
     <div className="space-y-5">
@@ -156,17 +215,6 @@ export function CategoriesBulkForm({
 <FormPendingOverlay />
         <input type="hidden" name="operation" value="bulkUpdateCategories" />
       </form>
-
-      {state.error && (
-        <p role="alert" className="text-xs text-red-600">
-          {state.error}
-        </p>
-      )}
-      {state.success && (
-        <p role="status" className="text-xs text-emerald-600">
-          Saved.
-        </p>
-      )}
 
       {categories.map((category) => (
         <article
@@ -199,17 +247,55 @@ export function CategoriesBulkForm({
               />
               Active
             </label>
+            <DeleteButton
+              formId={DELETE_CATEGORY_FORM_ID}
+              id={category.id}
+              label={`Delete ${category.name}`}
+              message={`Delete the ${category.name} category? All its subcategories and their budgets are deleted too; expenses keep their category label.`}
+              disabled={deleting}
+            />
           </div>
           <SubcategoriesSection
             category={category}
             departments={departments}
+            deleting={deleting}
           />
         </article>
       ))}
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        {error && (
+          <p role="alert" className="text-xs text-red-600">
+            {error}
+          </p>
+        )}
+        {saved && (
+          <p role="status" className="text-xs text-emerald-600">
+            Saved.
+          </p>
+        )}
         <SaveButton pending={pending} />
       </div>
+
+      {/* Separate forms (delete buttons join them via the `form` attribute)
+          so pressing Enter in a name field never triggers a delete.
+          `contents` (not `hidden`) so their loading overlays still render. */}
+      <form
+        id={DELETE_CATEGORY_FORM_ID}
+        action={deleteCategoryAction}
+        className="contents"
+      >
+        <FormPendingOverlay label="Deleting…" />
+        <input type="hidden" name="operation" value="deleteCategory" />
+      </form>
+      <form
+        id={DELETE_SUBCATEGORY_FORM_ID}
+        action={deleteSubcategoryAction}
+        className="contents"
+      >
+        <FormPendingOverlay label="Deleting…" />
+        <input type="hidden" name="operation" value="deleteSubcategory" />
+      </form>
     </div>
   );
 }

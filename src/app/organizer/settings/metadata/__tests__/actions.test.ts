@@ -13,6 +13,8 @@ const departmentUpdateMock = vi.fn();
 const departmentFindUniqueMock = vi.fn();
 const departmentFindManyMock = vi.fn();
 const departmentDeleteMock = vi.fn();
+const categoryDeleteMock = vi.fn();
+const subcategoryDeleteMock = vi.fn();
 const subcategoryCountMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
@@ -31,11 +33,13 @@ vi.mock("@/lib/prisma", () => ({
     category: {
       create: (...args: unknown[]) => categoryCreateMock(...args),
       update: (...args: unknown[]) => categoryUpdateMock(...args),
+      delete: (...args: unknown[]) => categoryDeleteMock(...args),
     },
     subcategory: {
       create: (...args: unknown[]) => subcategoryCreateMock(...args),
       update: (...args: unknown[]) => subcategoryUpdateMock(...args),
       count: (...args: unknown[]) => subcategoryCountMock(...args),
+      delete: (...args: unknown[]) => subcategoryDeleteMock(...args),
     },
     department: {
       create: (...args: unknown[]) => departmentCreateMock(...args),
@@ -662,5 +666,78 @@ describe("saveMetadata deleteDepartment", () => {
     );
 
     expect(result.error).toBe("That item is still in use.");
+  });
+});
+
+describe("saveMetadata deleteCategory / deleteSubcategory", () => {
+  const id = "clabcdefghijklmnopqrstu1";
+
+  test("deletes a category", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(categoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/organizer/settings/metadata",
+    );
+    expect(result).toEqual({ success: true });
+  });
+
+  test("deletes a subcategory", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(subcategoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("rejects an invalid id", async () => {
+    await asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id: "nope" }),
+    );
+
+    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("only admins can delete", async () => {
+    authMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toBe("Only admins can edit metadata.");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("turns a missing record into a friendly error", async () => {
+    await asAdmin();
+    const { Prisma } = await import("@prisma/client");
+    subcategoryDeleteMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("gone", {
+        code: "P2025",
+        clientVersion: "1",
+      }),
+    );
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(result.error).toBe("That item no longer exists.");
   });
 });

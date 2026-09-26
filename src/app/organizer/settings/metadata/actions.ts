@@ -34,6 +34,14 @@ const metadataSchema = z.discriminatedUnion("operation", [
     name: z.string().trim().min(2),
   }),
   z.object({
+    operation: z.literal("deleteCategory"),
+    id: z.string().cuid(),
+  }),
+  z.object({
+    operation: z.literal("deleteSubcategory"),
+    id: z.string().cuid(),
+  }),
+  z.object({
     operation: z.literal("deleteDepartment"),
     id: z.string().cuid(),
   }),
@@ -150,6 +158,14 @@ export async function saveMetadata(
         });
         break;
       }
+      // Deleting a category also deletes its subcategories (cascade);
+      // expenses keep their category label and just lose the link.
+      case "deleteCategory":
+        await prisma.category.delete({ where: { id: data.id } });
+        break;
+      case "deleteSubcategory":
+        await prisma.subcategory.delete({ where: { id: data.id } });
+        break;
       case "deleteDepartment": {
         const department = await prisma.department.findUnique({
           where: { id: data.id },
@@ -240,6 +256,12 @@ export async function saveMetadata(
       error.code === "P2003"
     ) {
       return { error: "That item is still in use." };
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { error: "That item no longer exists." };
     }
     throw error;
   }
