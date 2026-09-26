@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { Bus, Paperclip, Plane, Send, TrainFront } from "lucide-react";
 import {
   saveTravelRequest,
@@ -14,7 +14,9 @@ import {
   currencyOptions,
   trainCompanyOptions,
 } from "@/components/constants";
-import { FormPendingOverlay } from "@/components/loading-overlay";
+import { LoadingOverlay } from "@/components/loading-overlay";
+import { Toast } from "@/components/toast";
+import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: TravelFormState = {};
 
@@ -73,6 +75,7 @@ export function TravelReimbursementForm({
     saveTravelRequest,
     initialState,
   );
+  const showResult = useAutoDismiss(state);
   const [transportMode, setTransportMode] = useState(values.transportMode);
   const [luggagePaid, setLuggagePaid] = useState(values.luggagePaid);
   const [ticketName, setTicketName] = useState("");
@@ -93,8 +96,18 @@ export function TravelReimbursementForm({
         : "Select a bus company";
 
   return (
-    <form action={formAction} className="space-y-7">
-<FormPendingOverlay />
+    <form
+      // Submitted by hand rather than through `action`: React resets a
+      // form's fields once its action settles, which would wipe everything
+      // the hacker typed when the server rejects the request.
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="space-y-7"
+    >
+      {pending && <LoadingOverlay label="Submitting…" />}
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="field">
           <FieldLabel text="Origin city" required />
@@ -278,7 +291,10 @@ export function TravelReimbursementForm({
         </label>
       </div>
 
-      <FormResult state={state} success="Travel request submitted." />
+      {showResult && state.error && <Toast kind="error">{state.error}</Toast>}
+      {showResult && state.success && (
+        <Toast kind="success">Travel request submitted.</Toast>
+      )}
       <button className="primary-button w-full" disabled={pending}>
         <Send size={17} aria-hidden="true" />
         {pending
