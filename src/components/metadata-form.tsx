@@ -7,6 +7,7 @@ import {
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
+import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
 
@@ -30,6 +31,7 @@ export function MetadataForm({
     saveMetadata,
     initialState,
   );
+  const showMessage = useAutoDismiss(state);
   const isSubcategory = operation === "createSubcategory";
 
   return (
@@ -68,12 +70,12 @@ export function MetadataForm({
           </>
         )}
       </button>
-      {state.error && (
+      {showMessage && state.error && (
         <p role="alert" className="w-full text-xs text-red-600">
           {state.error}
         </p>
       )}
-      {state.success && (
+      {showMessage && state.success && (
         <p role="status" className="w-full text-xs text-emerald-600">
           Saved.
         </p>

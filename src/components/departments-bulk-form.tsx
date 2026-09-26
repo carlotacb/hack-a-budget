@@ -7,6 +7,7 @@ import {
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
+import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
 
@@ -46,24 +47,20 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
     saveMetadata,
     initialState,
   );
-  const error = deleteState.error ?? state.error;
+  const showSave = useAutoDismiss(state);
+  const showDelete = useAutoDismiss(deleteState);
+  const error =
+    (showDelete ? deleteState.error : undefined) ??
+    (showSave ? state.error : undefined);
+  const saved =
+    !error &&
+    ((showSave && state.success) || (showDelete && deleteState.success));
 
   return (
     <>
     <form action={formAction} className="space-y-5">
 <FormPendingOverlay />
       <input type="hidden" name="operation" value="bulkUpdateDepartments" />
-
-      {error && (
-        <p role="alert" className="text-xs text-red-600">
-          {error}
-        </p>
-      )}
-      {(state.success || deleteState.success) && !error && (
-        <p role="status" className="text-xs text-emerald-600">
-          Saved.
-        </p>
-      )}
 
       {departments.map((department) => {
         const isGeneral = department.code === GENERAL_DEPARTMENT_CODE;
@@ -138,7 +135,17 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
         );
       })}
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        {error && (
+          <p role="alert" className="text-xs text-red-600">
+            {error}
+          </p>
+        )}
+        {saved && (
+          <p role="status" className="text-xs text-emerald-600">
+            Saved.
+          </p>
+        )}
         <SaveButton pending={pending} />
       </div>
 

@@ -1,5 +1,5 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
 vi.mock("@/app/organizer/settings/metadata/actions", () => ({
@@ -136,6 +136,46 @@ describe("DepartmentsBulkForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing to save.",
     );
+  });
+
+  test("shows 'Saved.' next to the Save changes button and hides it after 5 seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("Saved.");
+    expect(status.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Save changes" }),
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  test("the can't-delete error also disappears after 5 seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveMetadataMock.mockResolvedValueOnce({ error: "Still has subcategories." });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Still has subcategories.",
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   test("shows a success message returned from the action", async () => {
