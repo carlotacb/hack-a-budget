@@ -327,4 +327,24 @@ describe("TravelReimbursementForm", () => {
       "Travel request submitted.",
     );
   });
+
+  test("keeps what the hacker typed after an error and shows it as a toast", async () => {
+    saveTravelRequestMock.mockResolvedValueOnce({
+      error: "Outbound departure must be before arrival.",
+    });
+    render(
+      <TravelReimbursementForm values={fullValues()} isResubmission={false} />,
+    );
+    attachTicket();
+    fireEvent.change(screen.getByDisplayValue("Barcelona"), {
+      target: { value: "Girona" },
+    });
+
+    submitForm();
+
+    const toast = await screen.findByRole("alert");
+    expect(toast).toHaveTextContent("Outbound departure must be before arrival.");
+    expect(toast.className).toContain("fixed");
+    expect(screen.getByDisplayValue("Girona")).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,5 @@
-import { Plane } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Plane } from "lucide-react";
+import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { DemoProofForm } from "@/components/demo-proof-form";
 import {
@@ -17,7 +18,16 @@ import {
   travelStatusLabels,
 } from "@/lib/travel";
 
-export default async function HackerPage() {
+type HackerSection = "info" | "travel";
+
+export default async function HackerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string }>;
+}) {
+  const { section: rawSection } = await searchParams;
+  const section: HackerSection | null =
+    rawSection === "info" || rawSection === "travel" ? rawSection : null;
   const user = await requireHacker();
   const [reimbursement, settings] = await Promise.all([
     prisma.travelReimbursement.findUnique({
@@ -53,9 +63,7 @@ export default async function HackerPage() {
         outboundArrivalPlace: reimbursement.outboundArrivalPlace,
         outboundCarrier: reimbursement.outboundCarrier,
         outboundServiceNumber: reimbursement.outboundServiceNumber ?? "",
-        returnDepartureAt: formatLocalDateTime(
-          reimbursement.returnDepartureAt,
-        ),
+        returnDepartureAt: formatLocalDateTime(reimbursement.returnDepartureAt),
         returnDeparturePlace: reimbursement.returnDeparturePlace,
         returnArrivalAt: formatLocalDateTime(reimbursement.returnArrivalAt),
         returnArrivalPlace: reimbursement.returnArrivalPlace,
@@ -95,129 +103,196 @@ export default async function HackerPage() {
     <div className="min-h-screen bg-[#f6f7fb]">
       <AppHeader name={user.name} role="Hacker" />
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12 lg:px-8">
-
-        <section className="dashboard-card" id="travel-reimbursement">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-violet-700">
-                <Plane size={20} aria-hidden="true" />
-                <p className="eyebrow">Travel reimbursement</p>
-              </div>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
-                Your round trip
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Submit your travel reimbursement request to get reimbursed for your travel expenses. Make sure your ticket follows the following rules [Link with the rules]
-              </p>
-            </div>
-            {reimbursement && (
-              <span
-                className={`rounded-full px-3 py-1 text-sm font-semibold ${travelStatusClasses[reimbursement.status]}`}
-              >
-                {travelStatusLabels[reimbursement.status]}
-              </span>
-            )}
-          </div>
-
-          {reimbursement?.organizerNote && (
-            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-900">Reviewer note</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
-                {reimbursement.organizerNote}
-              </p>
-            </div>
-          )}
-
-          {canEdit ? (
-            <div className="mt-8">
-              <TravelReimbursementForm
-                values={values}
-                isResubmission={Boolean(reimbursement)}
+        {section === null && (
+          <section aria-label="What do you want to do?">
+            <p className="eyebrow">Welcome, {user.name}</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
+              What would you like to do?
+            </h1>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2">
+              <SectionCard
+                href="/hacker?section=info"
+                icon={<CalendarDays size={24} aria-hidden="true" />}
+                title="See information of the event"
+                description="Dates, schedule and everything you need to know about the hackathon."
+              />
+              <SectionCard
+                href="/hacker?section=travel"
+                icon={<Plane size={24} aria-hidden="true" />}
+                title="Ask for travel reimbursement"
+                description="Submit your round trip and follow the status of your request."
               />
             </div>
-          ) : (
-            <div className="mt-7 grid gap-4 sm:grid-cols-3">
+          </section>
+        )}
+
+        {section !== null && (
+          <Link
+            href="/hacker"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-violet-700 hover:text-violet-900"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back
+          </Link>
+        )}
+
+        {section === "info" && (
+          <section className="dashboard-card" id="event-information">
+            <div className="flex items-center gap-2 text-violet-700">
+              <CalendarDays size={20} aria-hidden="true" />
+              <p className="eyebrow">Event information</p>
+            </div>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
+              About the hackathon
+            </h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <StatusFact
-                label="Submitted total"
-                value={formatMoney(
-                  reimbursement.totalPriceCents,
-                  reimbursement.totalCurrencyCode,
-                )}
-              />
-              <StatusFact
-                label="Approved reimbursement"
-                value={formatMoney(
-                  reimbursement.approvedAmountCents,
-                  reimbursement.totalCurrencyCode,
-                )}
-              />
-              <StatusFact
-                label="Submitted"
-                value={formatEventDateTime(reimbursement.submittedAt)}
+                label="Starts"
+                value={
+                  settings?.hackathonStartAt
+                    ? formatEventDateTime(settings.hackathonStartAt)
+                    : "To be announced"
+                }
               />
             </div>
-          )}
+            <p className="mt-6 text-sm leading-6 text-slate-600">
+              More details about the event will appear here soon.
+            </p>
+          </section>
+        )}
 
-          {reimbursement &&
-            ["APPROVED", "FINAL_REVIEW", "FINAL_APPROVED"].includes(
-              reimbursement.status,
-            ) && (
-              <div className="mt-8 space-y-6 border-t border-slate-200 pt-7">
-                <div className="rounded-2xl bg-violet-50 p-5 text-sm leading-6 text-violet-950">
-                  <p className="font-semibold">Reimbursement and event instructions</p>
-                  <p className="mt-2 whitespace-pre-wrap">
-                    {settings?.reimbursementInstructions ??
-                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit."}
-                  </p>
+        {section === "travel" && (
+          <section className="dashboard-card" id="travel-reimbursement">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-violet-700">
+                  <Plane size={20} aria-hidden="true" />
+                  <p className="eyebrow">Travel reimbursement</p>
                 </div>
-                {canSubmitDemo && (
-                  <DemoProofForm
-                    unlocked={unlocked}
-                    unlockLabel={formatEventDateTime(settings?.hackathonStartAt)}
-                    demoUrl={reimbursement.demoUrl ?? ""}
-                    demoComment={reimbursement.demoComment ?? ""}
-                  />
-                )}
-                {reimbursement.demoSubmittedAt && (
-                  <div className="rounded-2xl border border-slate-200 p-5">
-                    <p className="font-semibold">Final review</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Demo proof submitted {formatEventDateTime(reimbursement.demoSubmittedAt)}.
-                      {" "}
-                      {settings?.finalReviewInstructions}
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
+                  Your round trip
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Submit your travel reimbursement request to get reimbursed for
+                  your travel expenses. Make sure your ticket follows the
+                  following rules [Link with the rules]
+                </p>
+              </div>
+              {reimbursement && (
+                <span
+                  className={`rounded-full px-3 py-1 text-sm font-semibold ${travelStatusClasses[reimbursement.status]}`}
+                >
+                  {travelStatusLabels[reimbursement.status]}
+                </span>
+              )}
+            </div>
+
+            {reimbursement?.organizerNote && (
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  Reviewer note
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
+                  {reimbursement.organizerNote}
+                </p>
+              </div>
+            )}
+
+            {canEdit ? (
+              <div className="mt-8">
+                <TravelReimbursementForm
+                  values={values}
+                  isResubmission={Boolean(reimbursement)}
+                />
+              </div>
+            ) : (
+              <div className="mt-7 grid gap-4 sm:grid-cols-3">
+                <StatusFact
+                  label="Submitted total"
+                  value={formatMoney(
+                    reimbursement.totalPriceCents,
+                    reimbursement.totalCurrencyCode,
+                  )}
+                />
+                <StatusFact
+                  label="Approved reimbursement"
+                  value={formatMoney(
+                    reimbursement.approvedAmountCents,
+                    reimbursement.totalCurrencyCode,
+                  )}
+                />
+                <StatusFact
+                  label="Submitted"
+                  value={formatEventDateTime(reimbursement.submittedAt)}
+                />
+              </div>
+            )}
+
+            {reimbursement &&
+              ["APPROVED", "FINAL_REVIEW", "FINAL_APPROVED"].includes(
+                reimbursement.status,
+              ) && (
+                <div className="mt-8 space-y-6 border-t border-slate-200 pt-7">
+                  <div className="rounded-2xl bg-violet-50 p-5 text-sm leading-6 text-violet-950">
+                    <p className="font-semibold">
+                      Reimbursement and event instructions
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap">
+                      {settings?.reimbursementInstructions ??
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit."}
                     </p>
                   </div>
-                )}
+                  {canSubmitDemo && (
+                    <DemoProofForm
+                      unlocked={unlocked}
+                      unlockLabel={formatEventDateTime(
+                        settings?.hackathonStartAt,
+                      )}
+                      demoUrl={reimbursement.demoUrl ?? ""}
+                      demoComment={reimbursement.demoComment ?? ""}
+                    />
+                  )}
+                  {reimbursement.demoSubmittedAt && (
+                    <div className="rounded-2xl border border-slate-200 p-5">
+                      <p className="font-semibold">Final review</p>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Demo proof submitted{" "}
+                        {formatEventDateTime(reimbursement.demoSubmittedAt)}.{" "}
+                        {settings?.finalReviewInstructions}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            {reimbursement && reimbursement.statusEvents.length > 0 && (
+              <div className="mt-8 border-t border-slate-200 pt-7">
+                <h3 className="text-lg font-semibold">Status history</h3>
+                <ol className="mt-4 space-y-3">
+                  {reimbursement.statusEvents.map((event) => (
+                    <li
+                      key={event.id}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    >
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <span className="font-semibold">
+                          {travelStatusLabels[event.toStatus]}
+                        </span>
+                        <time className="text-slate-500">
+                          {formatEventDateTime(event.createdAt)}
+                        </time>
+                      </div>
+                      <p className="mt-1 text-slate-600">
+                        {event.actor?.name ?? "Deleted user"}
+                        {event.note ? ` — ${event.note}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
               </div>
             )}
-
-          {reimbursement && reimbursement.statusEvents.length > 0 && (
-            <div className="mt-8 border-t border-slate-200 pt-7">
-              <h3 className="text-lg font-semibold">Status history</h3>
-              <ol className="mt-4 space-y-3">
-                {reimbursement.statusEvents.map((event) => (
-                  <li
-                    key={event.id}
-                    className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
-                  >
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="font-semibold">
-                        {travelStatusLabels[event.toStatus]}
-                      </span>
-                      <time className="text-slate-500">
-                        {formatEventDateTime(event.createdAt)}
-                      </time>
-                    </div>
-                    <p className="mt-1 text-slate-600">
-                      {event.actor?.name ?? "Deleted user"}
-                      {event.note ? ` — ${event.note}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
@@ -231,5 +306,34 @@ function StatusFact({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-2 font-semibold text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function SectionCard({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="dashboard-card group flex flex-col gap-4 transition hover:border-violet-300 hover:shadow-lg"
+    >
+      <span className="icon-tile bg-violet-100 text-violet-700">{icon}</span>
+      <div>
+        <h2 className="text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+      </div>
+      <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-violet-700">
+        Open
+        <ChevronRight size={16} aria-hidden="true" />
+      </span>
+    </Link>
   );
 }
