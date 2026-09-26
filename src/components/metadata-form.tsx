@@ -56,12 +56,15 @@ export function MetadataForm({
           </select>
         </label>
       )}
-      <button
-        className="secondary-button !h-12 text-sm"
-        disabled={pending}
-        aria-label={pending ? "Adding..." : "Add"}
-      >
-        {pending ? "Adding..." : <Plus size={18} aria-hidden="true" />}
+      <button className="primary-button !h-12 text-sm" disabled={pending}>
+        {pending ? (
+          "Adding..."
+        ) : (
+          <>
+            <Plus size={18} aria-hidden="true" />
+            Add
+          </>
+        )}
       </button>
       {state.error && (
         <p role="alert" className="w-full text-xs text-red-600">

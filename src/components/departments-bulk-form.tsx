@@ -1,6 +1,6 @@
 "use client";
 
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { useActionState } from "react";
 import {
   type MetadataFormState,
@@ -10,6 +10,7 @@ import {
 const initialState: MetadataFormState = {};
 
 const GENERAL_DEPARTMENT_CODE = "general";
+const DELETE_FORM_ID = "delete-department-form";
 
 type Department = {
   id: string;
@@ -28,10 +29,9 @@ function SaveButton({ pending }: { pending: boolean }) {
     <button
       className="primary-button"
       disabled={pending}
-      aria-label={pending ? "Saving..." : "Save"}
     >
       <Save size={18} aria-hidden="true" />
-      {pending ? "Saving..." : "Save"}
+      {pending ? "Saving..." : "Save changes"}
     </button>
   );
 }
@@ -41,17 +41,23 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
     saveMetadata,
     initialState,
   );
+  const [deleteState, deleteAction, deleting] = useActionState(
+    saveMetadata,
+    initialState,
+  );
+  const error = deleteState.error ?? state.error;
 
   return (
+    <>
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="operation" value="bulkUpdateDepartments" />
 
-      {state.error && (
+      {error && (
         <p role="alert" className="text-xs text-red-600">
-          {state.error}
+          {error}
         </p>
       )}
-      {state.success && (
+      {(state.success || deleteState.success) && !error && (
         <p role="status" className="text-xs text-emerald-600">
           Saved.
         </p>
@@ -69,16 +75,6 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
             className="rounded-2xl border border-slate-200 p-4"
           >
             <div className="flex flex-wrap items-end gap-2">
-              <label className="field min-w-28 flex-1">
-                <span>Code</span>
-                <input
-                  name={`department:${department.id}:code`}
-                  defaultValue={department.code}
-                  placeholder="code"
-                  disabled={isGeneral}
-                  required={!isGeneral}
-                />
-              </label>
               <label className="field min-w-40 flex-[2]">
                 <span>Name</span>
                 <input
@@ -97,11 +93,33 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
                 />
                 Active
               </label>
+              {!isGeneral && (
+                <button
+                  type="submit"
+                  form={DELETE_FORM_ID}
+                  name="id"
+                  value={department.id}
+                  disabled={deleting}
+                  className="secondary-button !h-12 !border-red-200 !text-red-700"
+                  aria-label={`Delete ${department.name}`}
+                  onClick={(event) => {
+                    if (
+                      !window.confirm(
+                        `Delete the ${department.name} department? Expenses assigned to it will become unassigned.`,
+                      )
+                    ) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
+                  <Trash2 size={18} aria-hidden="true" />
+                </button>
+              )}
             </div>
             {isGeneral && (
               <p className="mt-2 text-xs text-slate-400">
                 Protected default department — it can&apos;t be deactivated
-                or have its code changed.
+                or deleted.
               </p>
             )}
           </div>
@@ -111,6 +129,14 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
       <div className="flex items-center justify-end">
         <SaveButton pending={pending} />
       </div>
+
     </form>
+
+      {/* Separate form (delete buttons join it via the `form` attribute) so
+          pressing Enter in a name field never triggers a delete. */}
+      <form id={DELETE_FORM_ID} action={deleteAction} className="hidden">
+        <input type="hidden" name="operation" value="deleteDepartment" />
+      </form>
+    </>
   );
 }

@@ -34,6 +34,10 @@ const metadataSchema = z.discriminatedUnion("operation", [
     name: z.string().trim().min(2),
   }),
   z.object({
+    operation: z.literal("deleteDepartment"),
+    id: z.string().cuid(),
+  }),
+  z.object({
     operation: z.literal("updateTravelSettings"),
     hackathonStartAt: z.string(),
     reimbursementInstructions: z.string().trim().min(1).max(5000),
@@ -146,6 +150,32 @@ export async function saveMetadata(
         });
         break;
       }
+      case "deleteDepartment": {
+        const department = await prisma.department.findUnique({
+          where: { id: data.id },
+          select: { code: true },
+        });
+
+        if (!department) {
+          return { error: "That department no longer exists." };
+        }
+        if (department.code === GENERAL_DEPARTMENT_CODE) {
+          return { error: "The General department can't be deleted." };
+        }
+
+        const subcategoryCount = await prisma.subcategory.count({
+          where: { departmentId: data.id },
+        });
+
+        if (subcategoryCount > 0) {
+          return {
+            error: `This department still has ${subcategoryCount} subcategor${subcategoryCount === 1 ? "y" : "ies"}. Move them to another department first.`,
+          };
+        }
+
+        await prisma.department.delete({ where: { id: data.id } });
+        break;
+      }
       case "updateTravelSettings": {
         const hackathonStartAt = data.hackathonStartAt
           ? parseLocalDateTime(data.hackathonStartAt)
@@ -204,6 +234,12 @@ export async function saveMetadata(
       error.code === "P2002"
     ) {
       return { error: "That name or code is already in use." };
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2003"
+    ) {
+      return { error: "That item is still in use." };
     }
     throw error;
   }
@@ -301,46 +337,19 @@ async function bulkUpdateDepartments(
     }
   }
 
-  for (const [id, row] of departmentRows) {
-    if (id === generalDepartment?.id) continue;
+  await prisma.$transaction(
+    Array.from(departmentRows.entries()).map(([id, row]) => {
+      const isGeneral = id === generalDepartment?.id;
 
-    if (
-      !row.code ||
-      row.code.trim().length < 2 ||
-      !/^[a-z0-9-]+$/i.test(row.code.trim())
-    ) {
-      return { error: "Each department needs a valid code." };
-    }
-  }
-
-  try {
-    await prisma.$transaction(
-      Array.from(departmentRows.entries()).map(([id, row]) => {
-        const isGeneral = id === generalDepartment?.id;
-
-        return prisma.department.update({
-          where: { id },
-          data: {
-            name: row.name.trim(),
-            ...(isGeneral
-              ? {}
-              : {
-                  code: row.code!.trim().toLowerCase(),
-                  active: row.active === "on",
-                }),
-          },
-        });
-      }),
-    );
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { error: "That code is already in use." };
-    }
-    throw error;
-  }
+      return prisma.department.update({
+        where: { id },
+        data: {
+          name: row.name.trim(),
+          ...(isGeneral ? {} : { active: row.active === "on" }),
+        },
+      });
+    }),
+  );
 
   revalidateMetadataPaths();
   return { success: true };
