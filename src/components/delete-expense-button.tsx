@@ -20,7 +20,7 @@ export function DeleteExpenseButton({
       <input type="hidden" name="id" value={id} />
       <button
         type="submit"
-        className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700"
+        className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-800"
         aria-label={`Delete ${description}`}
         disabled={pending}
         onClick={(event) => {

@@ -132,16 +132,4 @@ export function formatEventDateTime(value: Date | null | undefined) {
     : "Not configured";
 }
 
-export function formatMoney(
-  cents: number | null | undefined,
-  currencyCode = "EUR",
-) {
-  if (cents === null || cents === undefined) {
-    return "Not set";
-  }
-
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(cents / 100);
-}
+export { formatMoney } from "@/lib/money";
