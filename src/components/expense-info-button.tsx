@@ -33,7 +33,7 @@ export function ExpenseInfoButton({
     <>
       <button
         type="button"
-        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-violet-700"
+        className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
         onClick={() => setOpen(true)}
         aria-label={`View details for ${expense.description}`}
       >

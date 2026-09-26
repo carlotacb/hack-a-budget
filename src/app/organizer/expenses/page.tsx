@@ -192,6 +192,13 @@ export default async function ExpenseListPage() {
                     </td>
                     <td className="py-4">
                       <div className="flex items-center justify-end gap-2">
+                        {expense.ticketPath && (
+                          <TicketViewerButton
+                            ticketPath={`/api/tickets/expense/${expense.id}`}
+                            className="rounded-lg p-2 text-violet-700 hover:bg-violet-50 hover:text-violet-900"
+                            label="Ticket"
+                          />
+                        )}
                         <ExpenseInfoButton
                           expense={{
                             description: expense.description,
@@ -207,13 +214,6 @@ export default async function ExpenseListPage() {
                           scopeSpentCents={scopeSpentCents}
                           percentOfBudget={percentOfBudget}
                         />
-                        {expense.ticketPath && (
-                          <TicketViewerButton
-                            ticketPath={`/api/tickets/expense/${expense.id}`}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-violet-700"
-                            label="Ticket"
-                          />
-                        )}
                         {isAdmin && (
                           <>
                             <EditExpenseButton

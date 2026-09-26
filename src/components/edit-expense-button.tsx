@@ -20,7 +20,7 @@ export function EditExpenseButton({ categories, expense }: EditExpenseButtonProp
     <>
       <button
         type="button"
-        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-violet-700"
+        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
         onClick={() => setOpen(true)}
         aria-label={`Edit ${expense.description}`}
       >
