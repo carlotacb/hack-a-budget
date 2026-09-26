@@ -19,7 +19,10 @@ export default async function BudgetPlanPage({
       include: {
         categories: {
           include: {
-            subcategories: { orderBy: { name: "asc" } },
+            subcategories: {
+              include: { subcategory: { select: { active: true } } },
+              orderBy: { name: "asc" },
+            },
           },
           orderBy: [{ isUnexpected: "asc" }, { name: "asc" }],
         },
@@ -59,12 +62,16 @@ export default async function BudgetPlanPage({
     spentCents: category.categoryId
       ? (spentByCategoryId.get(category.categoryId) ?? 0)
       : 0,
-    subcategories: category.subcategories.map((subcategory) => ({
-      ...subcategory,
-      spentCents: subcategory.subcategoryId
-        ? (spentBySubcategoryId.get(subcategory.subcategoryId) ?? 0)
-        : 0,
-    })),
+    subcategories: category.subcategories
+      // A subcategory that was deactivated after being added to this
+      // budget plan should no longer clutter the editor.
+      .filter((subcategory) => subcategory.subcategory?.active !== false)
+      .map((subcategory) => ({
+        ...subcategory,
+        spentCents: subcategory.subcategoryId
+          ? (spentBySubcategoryId.get(subcategory.subcategoryId) ?? 0)
+          : 0,
+      })),
   }));
 
   return (

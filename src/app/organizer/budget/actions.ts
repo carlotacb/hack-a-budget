@@ -11,7 +11,7 @@ export type BudgetFormState = {
   success?: boolean;
 };
 
-const UNEXPECTED_CATEGORY_NAME = "Unexpected expenses";
+export const UNEXPECTED_CATEGORY_NAME = "Unexpected expenses";
 
 const amountSchema = z.coerce
   .number()
@@ -40,6 +40,13 @@ async function getOrCreateUnexpectedCategory(tx: Tx) {
   return tx.category.create({
     data: { name: UNEXPECTED_CATEGORY_NAME, budgetCents: 0 },
   });
+}
+
+/** Ensures the "Unexpected expenses" category exists, for pages (like
+ * metadata settings) that need to show/protect it outside a budget
+ * transaction. */
+export async function ensureUnexpectedCategory() {
+  return getOrCreateUnexpectedCategory(prisma);
 }
 
 /** Copies a budget plan's amounts onto the live Category/Subcategory

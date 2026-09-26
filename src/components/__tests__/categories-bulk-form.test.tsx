@@ -280,4 +280,32 @@ describe("CategoriesBulkForm delete buttons", () => {
     });
     confirmSpy.mockRestore();
   });
+
+  test("shows the Unexpected expenses category as read-only with no delete or active toggle", () => {
+    const categoriesWithUnexpected = [
+      ...categories,
+      {
+        id: "cat3",
+        name: "Unexpected expenses",
+        active: true,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        subcategories: [],
+      },
+    ];
+    render(
+      <CategoriesBulkForm
+        categories={categoriesWithUnexpected}
+        departments={departments}
+      />,
+    );
+
+    expect(screen.getByText("Unexpected expenses")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Delete Unexpected expenses"),
+    ).not.toBeInTheDocument();
+    const nameInputs = screen.getAllByRole("textbox", { name: "Name" });
+    for (const input of nameInputs) {
+      expect(input).not.toHaveValue("Unexpected expenses");
+    }
+  });
 });
