@@ -3,13 +3,21 @@
 import { X } from "lucide-react";
 import { useState } from "react";
 
-export function TicketViewerButton({ ticketPath }: { ticketPath: string }) {
+export function TicketViewerButton({
+  ticketPath,
+  className = "secondary-button mt-6",
+  label = "Open ticket document",
+}: {
+  ticketPath: string;
+  className?: string;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button type="button" className="secondary-button mt-6" onClick={() => setOpen(true)}>
-        Open ticket document
+      <button type="button" className={className} onClick={() => setOpen(true)}>
+        {label}
       </button>
 
       {open && (
