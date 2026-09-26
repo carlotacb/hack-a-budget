@@ -102,14 +102,6 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
                   required
                 />
               </label>
-              <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
-                <input
-                  name={`department:${department.id}:active`}
-                  type="checkbox"
-                  defaultChecked={department.active}
-                />
-                Active
-              </label>
               <button
                 type="submit"
                 form={DELETE_FORM_ID}
@@ -130,6 +122,14 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
               >
                 <Trash2 size={18} aria-hidden="true" />
               </button>
+              <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
+                <input
+                  name={`department:${department.id}:active`}
+                  type="checkbox"
+                  defaultChecked={department.active}
+                />
+                Active
+              </label>
             </div>
           </div>
         );

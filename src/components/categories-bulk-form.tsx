@@ -148,6 +148,13 @@ function SubcategoriesSection({
                 ))}
               </select>
             </label>
+            <DeleteButton
+              formId={DELETE_SUBCATEGORY_FORM_ID}
+              id={subcategory.id}
+              label={`Delete ${subcategory.name}`}
+              message={`Delete the ${subcategory.name} subcategory? Its budget is deleted too; expenses keep their category label.`}
+              disabled={deleting}
+            />
             <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
               <input
                 form={FORM_ID}
@@ -157,13 +164,6 @@ function SubcategoriesSection({
               />
               Active
             </label>
-            <DeleteButton
-              formId={DELETE_SUBCATEGORY_FORM_ID}
-              id={subcategory.id}
-              label={`Delete ${subcategory.name}`}
-              message={`Delete the ${subcategory.name} subcategory? Its budget is deleted too; expenses keep their category label.`}
-              disabled={deleting}
-            />
           </div>
         ))}
       </div>
@@ -238,6 +238,13 @@ export function CategoriesBulkForm({
                 required
               />
             </label>
+            <DeleteButton
+              formId={DELETE_CATEGORY_FORM_ID}
+              id={category.id}
+              label={`Delete ${category.name}`}
+              message={`Delete the ${category.name} category? All its subcategories and their budgets are deleted too; expenses keep their category label.`}
+              disabled={deleting}
+            />
             <label className="flex h-12 items-center gap-2 px-2 text-sm text-slate-600">
               <input
                 form={FORM_ID}
@@ -247,13 +254,6 @@ export function CategoriesBulkForm({
               />
               Active
             </label>
-            <DeleteButton
-              formId={DELETE_CATEGORY_FORM_ID}
-              id={category.id}
-              label={`Delete ${category.name}`}
-              message={`Delete the ${category.name} category? All its subcategories and their budgets are deleted too; expenses keep their category label.`}
-              disabled={deleting}
-            />
           </div>
           <SubcategoriesSection
             category={category}
