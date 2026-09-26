@@ -5,6 +5,7 @@ import {
   type MetadataFormState,
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: MetadataFormState = {};
 
@@ -24,6 +25,7 @@ export function TravelSettingsForm({
 
   return (
     <form action={formAction} className="space-y-4">
+<FormPendingOverlay />
       <input type="hidden" name="operation" value="updateTravelSettings" />
       <label className="field">
         <span>Hackathon start (event local time)</span>
@@ -76,6 +78,7 @@ export function TravelRequirementForm({
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
+<FormPendingOverlay />
       <input
         type="hidden"
         name="operation"
@@ -125,6 +128,7 @@ export function TravelMessageTemplateForm({
 
   return (
     <form action={formAction} className="space-y-2">
+<FormPendingOverlay />
       <input
         type="hidden"
         name="operation"

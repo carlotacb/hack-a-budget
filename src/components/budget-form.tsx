@@ -5,6 +5,7 @@ import {
   type BudgetFormState,
   updateBudgets,
 } from "@/app/organizer/budget/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: BudgetFormState = {};
 
@@ -29,6 +30,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 
   return (
     <form action={formAction} className="space-y-5">
+<FormPendingOverlay />
       {categories.map((category) => (
         <section key={category.id} className="rounded-2xl border border-slate-200 p-5">
           <label className="field">

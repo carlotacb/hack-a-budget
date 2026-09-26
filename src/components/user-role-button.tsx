@@ -3,6 +3,7 @@
 import type { Role } from "@prisma/client";
 import { Loader2, Save } from "lucide-react";
 import { useActionState } from "react";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 import {
   updateUserRole,
   type UserRoleFormState,
@@ -66,6 +67,7 @@ export function UserRoleButton({
         }
       }}
     >
+      <FormPendingOverlay label="Updating role…" />
       <input type="hidden" name="userId" value={userId} />
       <select
         name="role"

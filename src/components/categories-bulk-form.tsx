@@ -7,6 +7,7 @@ import {
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
 import { MetadataForm } from "@/components/metadata-form";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: MetadataFormState = {};
 
@@ -68,6 +69,7 @@ export function CategoriesBulkForm({
   return (
     <div className="space-y-5">
       <form id={FORM_ID} action={formAction}>
+<FormPendingOverlay />
         <input type="hidden" name="operation" value="bulkUpdateCategories" />
       </form>
 

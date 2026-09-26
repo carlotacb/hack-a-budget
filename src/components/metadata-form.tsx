@@ -6,6 +6,7 @@ import {
   type MetadataFormState,
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: MetadataFormState = {};
 
@@ -33,6 +34,7 @@ export function MetadataForm({
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
+<FormPendingOverlay />
       <input type="hidden" name="operation" value={operation} />
       {categoryId && (
         <input type="hidden" name="categoryId" value={categoryId} />

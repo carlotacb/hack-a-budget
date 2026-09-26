@@ -6,6 +6,7 @@ import {
   type MetadataFormState,
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
+import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: MetadataFormState = {};
 
@@ -50,6 +51,7 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
   return (
     <>
     <form action={formAction} className="space-y-5">
+<FormPendingOverlay />
       <input type="hidden" name="operation" value="bulkUpdateDepartments" />
 
       {error && (
@@ -145,6 +147,7 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
       {/* Separate form (delete buttons join it via the `form` attribute) so
           pressing Enter in a name field never triggers a delete. */}
       <form id={DELETE_FORM_ID} action={deleteAction} className="hidden">
+<FormPendingOverlay />
         <input type="hidden" name="operation" value="deleteDepartment" />
       </form>
     </>
