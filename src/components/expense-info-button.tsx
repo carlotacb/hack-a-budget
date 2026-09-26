@@ -2,7 +2,7 @@
 
 import { Info, X } from "lucide-react";
 import { useState } from "react";
-import { formatMoney } from "@/lib/travel";
+import { formatMoney } from "@/lib/money";
 
 type ExpenseInfoButtonProps = {
   expense: {
