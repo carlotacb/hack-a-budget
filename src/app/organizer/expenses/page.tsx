@@ -197,6 +197,7 @@ export default async function ExpenseListPage() {
                             ticketPath={`/api/tickets/expense/${expense.id}`}
                             className="rounded-lg p-2 text-violet-700 hover:bg-violet-50 hover:text-violet-900"
                             label="Ticket"
+                            iconOnly
                           />
                         )}
                         <ExpenseInfoButton

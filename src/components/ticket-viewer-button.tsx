@@ -1,23 +1,32 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Ticket, X } from "lucide-react";
 import { useState } from "react";
 
 export function TicketViewerButton({
   ticketPath,
   className = "secondary-button mt-6",
   label = "Open ticket document",
+  iconOnly = false,
 }: {
   ticketPath: string;
   className?: string;
   label?: string;
+  /** Render a ticket icon (labelled for screen readers) instead of text. */
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)}>
-        {label}
+      <button
+        type="button"
+        className={className}
+        aria-label={iconOnly ? label : undefined}
+        title={iconOnly ? label : undefined}
+        onClick={() => setOpen(true)}
+      >
+        {iconOnly ? <Ticket size={16} aria-hidden="true" /> : label}
       </button>
 
       {open && (
