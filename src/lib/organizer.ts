@@ -9,12 +9,7 @@ export const organizerRoles = [
   "ORGANIZER",
 ] as const satisfies readonly Role[];
 
-export const roleLabels = {
-  HACKER: "Hacker",
-  ORGANIZER: "Organizer",
-  DIRECTOR: "Director",
-  ADMIN: "Admin",
-} as const satisfies Record<Role, string>;
+export { roleLabels } from "@/lib/roles";
 
 export function dashboardForRole(role: Role) {
   return role === "HACKER" ? "/hacker" : "/organizer";
