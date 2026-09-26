@@ -112,11 +112,13 @@ function SubcategoriesSection({
       {/* Hidden rather than unmounted so collapsed rows still submit with the
           bulk save. */}
       <div hidden={collapsed} className="space-y-2 pb-3">
-        <MetadataForm
-          operation="createSubcategory"
-          categoryId={category.id}
-          departments={departments}
-        />
+        <div className="add-subcategory">
+          <MetadataForm
+            operation="createSubcategory"
+            categoryId={category.id}
+            departments={departments}
+          />
+        </div>
         <hr className="!my-4 border-slate-200" />
         {category.subcategories.map((subcategory) => (
           <div

@@ -517,3 +517,8 @@ button:disabled {
   background-color: #e2e8f0;
   color: #64748b;
 }
+
+/* No adding subcategories to an inactive category. */
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) .add-subcategory button {
+  display: none;
+}
