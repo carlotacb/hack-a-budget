@@ -225,7 +225,7 @@ export function CategoriesBulkForm({
           // the field is stuck showing stale data even though the save
           // succeeded (the next server refresh arrives too late to matter).
           key={`${category.id}:${new Date(category.updatedAt).getTime()}`}
-          className="space-y-3 rounded-2xl border border-slate-200 p-4"
+          className="category-box space-y-3 rounded-2xl border border-slate-200 p-4"
         >
           <div className="flex flex-wrap items-end gap-2">
             <label className="field min-w-40 flex-[2]">

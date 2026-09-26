@@ -90,7 +90,7 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
             key={`${department.id}:${new Date(department.updatedAt).getTime()}`}
             // Grey out the whole box (live, as the checkbox is toggled)
             // while the department is inactive.
-            className="rounded-2xl border border-slate-200 p-4 transition-colors has-[input[type=checkbox]:not(:checked)]:border-slate-300 has-[input[type=checkbox]:not(:checked)]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:[&_input:not([type=checkbox])]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:text-slate-400"
+            className="inactive-box rounded-2xl border border-slate-200 p-4"
           >
             <div className="flex flex-wrap items-end gap-2">
               <label className="field min-w-40 flex-[2]">

@@ -478,3 +478,42 @@ button:disabled {
 .loading-overlay {
   animation: loading-overlay-in 150ms ease-out 250ms both;
 }
+
+/* Grey out a whole row/box (live) while its Active checkbox is unchecked. */
+.inactive-box {
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.inactive-box:has(input[type="checkbox"]:not(:checked)) {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.inactive-box:has(input[type="checkbox"]:not(:checked)) .field > span {
+  color: #94a3b8;
+}
+
+.inactive-box:has(input[type="checkbox"]:not(:checked)) .field input {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+/* A category is greyed out (with everything inside it) while its own Active
+   checkbox, the one in its first row, is unchecked. */
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) .field > span,
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) h3 {
+  color: #94a3b8;
+}
+
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) .field input,
+.category-box:has(> div:first-child input[type="checkbox"]:not(:checked)) .field select {
+  background-color: #e2e8f0;
+  color: #64748b;
+}
