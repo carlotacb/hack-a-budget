@@ -7,6 +7,7 @@ import {
   saveMetadata,
 } from "@/app/organizer/settings/metadata/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
+import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
 
 const initialState: MetadataFormState = {};
@@ -137,14 +138,10 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
 
       <div className="flex items-center justify-end gap-4">
         {error && (
-          <p role="alert" className="text-xs text-red-600">
-            {error}
-          </p>
+          <Toast kind="error">{error}</Toast>
         )}
         {saved && (
-          <p role="status" className="text-xs text-emerald-600">
-            Saved.
-          </p>
+          <Toast kind="success">Saved.</Toast>
         )}
         <SaveButton pending={pending} />
       </div>
