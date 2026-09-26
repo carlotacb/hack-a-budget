@@ -10,6 +10,7 @@ import { MetadataForm } from "@/components/metadata-form";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
+import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
 
 const initialState: MetadataFormState = {};
 
@@ -80,8 +81,6 @@ type CategoriesBulkFormProps = {
 
 const inactiveClasses =
   "has-[input[type=checkbox]:not(:checked)]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:text-slate-400 has-[input[type=checkbox]:not(:checked)]:[&_input:not([type=checkbox])]:bg-slate-100 has-[input[type=checkbox]:not(:checked)]:[&_select]:bg-slate-100";
-
-const UNEXPECTED_CATEGORY_NAME = "Unexpected expenses";
 
 function SubcategoriesSection({
   category,

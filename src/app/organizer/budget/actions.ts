@@ -5,13 +5,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
+import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
 
 export type BudgetFormState = {
   error?: string;
   success?: boolean;
 };
-
-export const UNEXPECTED_CATEGORY_NAME = "Unexpected expenses";
 
 const amountSchema = z.coerce
   .number()

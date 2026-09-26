@@ -10,10 +10,10 @@ import {
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { parseLocalDateTime } from "@/lib/travel";
+import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
 import {
   syncNewCategoryToActiveBudget,
   syncNewSubcategoryToActiveBudget,
-  UNEXPECTED_CATEGORY_NAME,
 } from "@/app/organizer/budget/actions";
 
 export type MetadataFormState = {
