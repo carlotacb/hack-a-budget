@@ -94,6 +94,29 @@ describe("DepartmentsBulkForm", () => {
     confirmSpy.mockRestore();
   });
 
+  test("shows a loading overlay while a delete is in progress", async () => {
+    let resolveDelete: (value: object) => void = () => {};
+    saveMetadataMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<DepartmentsBulkForm departments={departments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HX" }));
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Deleting…" }),
+    ).toBeInTheDocument();
+
+    resolveDelete({ success: true });
+    await waitFor(() => {
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+    confirmSpy.mockRestore();
+  });
+
   test("declining the confirmation does not delete", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<DepartmentsBulkForm departments={departments} />);

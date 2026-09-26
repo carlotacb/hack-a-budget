@@ -145,9 +145,10 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
     </form>
 
       {/* Separate form (delete buttons join it via the `form` attribute) so
-          pressing Enter in a name field never triggers a delete. */}
-      <form id={DELETE_FORM_ID} action={deleteAction} className="hidden">
-<FormPendingOverlay />
+          pressing Enter in a name field never triggers a delete. `contents`
+          (not `hidden`) so its loading overlay still renders. */}
+      <form id={DELETE_FORM_ID} action={deleteAction} className="contents">
+        <FormPendingOverlay label="Deleting…" />
         <input type="hidden" name="operation" value="deleteDepartment" />
       </form>
     </>
