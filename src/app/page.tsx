@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -48,6 +49,45 @@ const features = [
     title: "Built for review",
     description:
       "Every approval, edit and status change is tracked, so the story of where the budget went is never lost.",
+  },
+];
+
+const screenshots = [
+  {
+    src: "/screenshots/dashboard.png",
+    width: 1440,
+    height: 760,
+    alt: "Organizer dashboard showing total spent, total budget, and spend by category and department",
+    title: "See finances at a glance",
+    description:
+      "Total spent, budget used, and where money is going, per category and per department.",
+  },
+  {
+    src: "/screenshots/expenses.png",
+    width: 1440,
+    height: 420,
+    alt: "Expense list with description, category, date, amount and actions",
+    title: "Track every expense",
+    description:
+      "Log expenses with a ticket attached, and see them all in one list.",
+  },
+  {
+    src: "/screenshots/budget.png",
+    width: 1440,
+    height: 820,
+    alt: "Budget page with multiple budget plans and the active one highlighted",
+    title: "Plan the budget",
+    description:
+      "Keep several budget plans, build one from scratch or from an existing one, then activate it.",
+  },
+  {
+    src: "/screenshots/hacker.png",
+    width: 1440,
+    height: 460,
+    alt: "Hacker home page with options to see event information or ask for travel reimbursement",
+    title: "A clear home for hackers",
+    description:
+      "Check event information, or ask for a travel reimbursement, in one click.",
   },
 ];
 
@@ -161,6 +201,47 @@ export default function Home() {
                 {feature.description}
               </p>
             </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-t border-slate-200 bg-slate-50 px-6 py-20 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="eyebrow">Inside the app</p>
+          <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+            A look at the workspace
+          </h2>
+          <p className="mt-4 text-lg leading-7 text-slate-600">
+            Real screens from BudgetHack, for organizers and hackers alike.
+          </p>
+        </div>
+
+        <div className="mx-auto mt-14 grid max-w-6xl gap-10 sm:grid-cols-2">
+          {screenshots.map((screenshot) => (
+            <figure key={screenshot.src} className="text-left">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_rgba(51,65,85,0.08)]">
+                <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                </div>
+                <Image
+                  src={screenshot.src}
+                  alt={screenshot.alt}
+                  width={screenshot.width}
+                  height={screenshot.height}
+                  className="w-full"
+                />
+              </div>
+              <figcaption className="mt-4">
+                <p className="font-semibold text-slate-900">
+                  {screenshot.title}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {screenshot.description}
+                </p>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </section>
