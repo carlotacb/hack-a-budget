@@ -537,3 +537,16 @@ button:disabled {
 .toast {
   animation: toast-in 180ms ease-out both;
 }
+
+@keyframes landing-scroll-cue {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(0.35rem);
+  }
+}
+
+.landing-scroll-cue {
+  animation: landing-scroll-cue 1.6s ease-in-out infinite;
+}

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   CheckCircle2,
+  ChevronDown,
+  Clock,
   Code2,
   FolderTree,
   Plane,
@@ -67,7 +68,7 @@ export default function Home() {
               href="/register"
               className="primary-button !h-10 !px-5 text-sm"
             >
-              Join now
+              Join as a hacker
             </Link>
           </div>
         </nav>
@@ -88,13 +89,15 @@ export default function Home() {
               budgets and travel reimbursements, in a workspace shaped around
               the role you choose.
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/register" className="primary-button">
-                Create your workspace <ArrowRight size={18} />
-              </Link>
-              <Link href="/login" className="secondary-button">
-                I already have an account
-              </Link>
+            <div className="mt-9">
+              <button
+                type="button"
+                disabled
+                className="primary-button !cursor-not-allowed !opacity-60"
+              >
+                <Clock size={18} aria-hidden="true" />
+                Working on having workspaces
+              </button>
             </div>
           </section>
 
@@ -105,8 +108,8 @@ export default function Home() {
                 <Code2 />
               </span>
               <p className="eyebrow mt-6">For hackers</p>
-              <h2>Make the idea real.</h2>
-              <p>A clean starting point that keeps the focus on building.</p>
+              <h2>Ask, check, relax.</h2>
+              <p>Reimbursements and event info, in one place.</p>
             </article>
             <article className="role-card role-card-organizer">
               <span className="icon-tile bg-amber-100 text-amber-700">
@@ -120,9 +123,20 @@ export default function Home() {
             </article>
           </section>
         </main>
+
+        <div className="flex justify-center pb-8">
+          <a
+            href="#features"
+            aria-label="Scroll to features"
+            className="flex flex-col items-center gap-1 text-sm font-medium text-slate-500 hover:text-violet-700"
+          >
+            See what BudgetHack does
+            <ChevronDown className="landing-scroll-cue" size={22} aria-hidden="true" />
+          </a>
+        </div>
       </div>
 
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+      <section id="features" className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <p className="eyebrow">What BudgetHack does</p>
           <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
@@ -158,14 +172,19 @@ export default function Home() {
               Ready to run your event's budget?
             </h2>
             <p className="mt-2 text-slate-600">
-              Join as a hacker or an organizer and get straight to your
-              workspace.
+              Workspaces are on their way. Sign in if you're already part of
+              one.
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/register" className="primary-button">
-              Create your workspace <ArrowRight size={18} />
-            </Link>
+            <button
+              type="button"
+              disabled
+              className="primary-button !cursor-not-allowed !opacity-60"
+            >
+              <Clock size={18} aria-hidden="true" />
+              Working on having workspaces
+            </button>
             <Link href="/login" className="secondary-button">
               Sign in
             </Link>
