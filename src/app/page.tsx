@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LandingNav } from "@/components/landing-nav";
 import {
   CheckCircle2,
   ChevronDown,
@@ -95,23 +96,7 @@ export default function Home() {
   return (
     <div>
       <div className="landing-shell">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8">
-          <div className="flex items-center gap-3 font-semibold">
-            <span className="brand-mark brand-mark-small">B</span>
-            BudgetHack
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="nav-link">
-              Sign in
-            </Link>
-            <Link
-              href="/register"
-              className="primary-button !h-10 !px-5 text-sm"
-            >
-              Join as a hacker
-            </Link>
-          </div>
-        </nav>
+        <LandingNav />
 
         <main className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-20 pt-14 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:pb-28 lg:pt-24">
           <section>
@@ -180,7 +165,7 @@ export default function Home() {
         <div className="mx-auto max-w-2xl text-center">
           <p className="eyebrow">What BudgetHack does</p>
           <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-            Everything a hackathon's budget needs
+            Everything a hackathon&apos;s budget needs
           </h2>
           <p className="mt-4 text-lg leading-7 text-slate-600">
             From the first ticket to the final reconciliation, one place to
@@ -250,10 +235,10 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 text-center sm:flex-row sm:text-left">
           <div>
             <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-              Ready to run your event's budget?
+              Ready to run your event&apos;s budget?
             </h2>
             <p className="mt-2 text-slate-600">
-              Workspaces are on their way. Sign in if you're already part of
+              Workspaces are on their way. Sign in if you&apos;re already part of
               one.
             </p>
           </div>
