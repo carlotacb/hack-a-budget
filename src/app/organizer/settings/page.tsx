@@ -1,28 +1,34 @@
 import { CategoriesBulkForm } from "@/components/categories-bulk-form";
 import { DepartmentsBulkForm } from "@/components/departments-bulk-form";
 import { MetadataForm } from "@/components/metadata-form";
-import { MetadataTabs } from "@/components/metadata-tabs";
+import { RoleSettingsForm } from "@/components/role-settings-form";
+import { SettingsTabs } from "@/components/settings-tabs";
 import {
+  HackathonSettingsForm,
   TravelMessageTemplateForm,
   TravelRequirementForm,
   TravelSettingsForm,
 } from "@/components/travel-metadata-forms";
 import { ensureUnexpectedCategory } from "@/app/organizer/budget/actions";
 import { requireOrganizer } from "@/lib/organizer";
+import { getHackathonById } from "@/lib/hackathon";
+import { getRoleSettings } from "@/lib/role-settings";
 import { prisma } from "@/lib/prisma";
 import { formatLocalDateTime } from "@/lib/travel";
 
-export default async function MetadataPage() {
-  await requireOrganizer(["ADMIN"]);
+export default async function SettingsPage() {
+  const organizer = await requireOrganizer(["ADMIN"]);
+  const { hackathonId } = organizer;
+  const roleSettings = getRoleSettings(organizer.hackathonSettings);
 
-  // General must always exist, even on a brand-new database.
+  // General must always exist, even right after registering the hackathon.
   await prisma.department.upsert({
-    where: { code: "general" },
+    where: { hackathonId_code: { hackathonId, code: "general" } },
     update: {},
-    create: { code: "general", name: "General" },
+    create: { hackathonId, code: "general", name: "General" },
   });
   // Unexpected expenses must always exist too, so it's always visible here.
-  await ensureUnexpectedCategory();
+  await ensureUnexpectedCategory(hackathonId);
 
   const [
     categories,
@@ -30,22 +36,53 @@ export default async function MetadataPage() {
     travelSettings,
     travelRequirements,
     travelMessageTemplates,
+    hackathon,
   ] = await Promise.all([
     prisma.category.findMany({
+      where: { hackathonId },
       include: { subcategories: { orderBy: { name: "asc" } } },
       orderBy: { name: "asc" },
     }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-    prisma.travelEventSettings.findUnique({ where: { id: "event" } }),
+    prisma.department.findMany({
+      where: { hackathonId },
+      orderBy: { name: "asc" },
+    }),
+    prisma.travelEventSettings.findUnique({ where: { hackathonId } }),
     prisma.travelFinalRequirement.findMany({
+      where: { hackathonId },
       orderBy: [{ active: "desc" }, { name: "asc" }],
     }),
     prisma.travelMessageTemplate.findMany({
+      where: { hackathonId },
       orderBy: [{ active: "desc" }, { name: "asc" }],
     }),
+    getHackathonById(hackathonId),
   ]);
 
-  const travelTab = (
+  const travelReimbursementEnabled =
+    hackathon?.travelReimbursementEnabled ?? true;
+
+  const featuresTab = (
+    <section className="dashboard-card grid gap-6 lg:grid-cols-2">
+      <div>
+        <p className="eyebrow">Functionality</p>
+        <h2 className="mt-1 text-xl font-semibold">
+          Activate or deactivate features
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Turn optional functionality on or off for this hackathon. More
+          personalization options will appear here over time.
+        </p>
+        <div className="mt-5">
+          <HackathonSettingsForm
+            travelReimbursementEnabled={travelReimbursementEnabled}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  const travelTab = travelReimbursementEnabled ? (
     <section className="dashboard-card grid gap-6 lg:grid-cols-2">
       <div>
         <p className="eyebrow">Travel configuration</p>
@@ -117,6 +154,17 @@ export default async function MetadataPage() {
         </div>
       </div>
     </section>
+  ) : (
+    <section className="dashboard-card">
+      <p className="eyebrow">Travel configuration</p>
+      <h2 className="mt-1 text-xl font-semibold">
+        Travel reimbursement is turned off
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        Enable the travel reimbursement flow in the Features tab to configure
+        event dates, requirements, and message templates.
+      </p>
+    </section>
   );
 
   const expensesTab = (
@@ -125,11 +173,11 @@ export default async function MetadataPage() {
         <p className="eyebrow">Expense structure</p>
         <h2 className="mt-1 text-xl font-semibold">Categories</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Each subcategory belongs to one department, used to attribute
-          expenses.
+          Each category belongs to one department, used to attribute
+          expenses; its subcategories inherit that department.
         </p>
       </div>
-      <MetadataForm operation="createCategory" />
+      <MetadataForm operation="createCategory" departments={departments} />
       {categories.length > 0 ? (
         <CategoriesBulkForm categories={categories} departments={departments} />
       ) : (
@@ -151,22 +199,39 @@ export default async function MetadataPage() {
     </section>
   );
 
+  const rolesTab = (
+    <section className="dashboard-card space-y-5">
+      <div>
+        <p className="eyebrow">Access management</p>
+        <h2 className="mt-1 text-xl font-semibold">Roles &amp; permissions</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Activate or deactivate roles, rename them, link Organizer roles to
+          a department, and choose what each role can do.
+        </p>
+      </div>
+      <RoleSettingsForm roleSettings={roleSettings} />
+    </section>
+  );
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
       <div className="mb-8">
         <p className="eyebrow">Configuration</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-slate-950">
-          Event metadata
+          Settings
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Edit metadata used by budgets, expenses, and travel reimbursements.
+          Manage feature toggles and the metadata used by budgets, expenses,
+          and travel reimbursements.
         </p>
       </div>
 
-      <MetadataTabs
+      <SettingsTabs
+        features={featuresTab}
         travel={travelTab}
         expenses={expensesTab}
         departments={departmentsTab}
+        roles={rolesTab}
       />
     </main>
   );

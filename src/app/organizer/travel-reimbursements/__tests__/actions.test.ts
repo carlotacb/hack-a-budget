@@ -1,10 +1,11 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
-const authMock = vi.fn();
-vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
+const getOrganizerIdMock = vi.fn();
+vi.mock("@/lib/organizer", () => ({
+  getOrganizerId: (...args: unknown[]) => getOrganizerIdMock(...args),
+}));
 
-const findUniqueUserMock = vi.fn();
-const findUniqueReimbursementMock = vi.fn();
+const findFirstReimbursementMock = vi.fn();
 const findManyRequirementMock = vi.fn();
 const transactionMock = vi.fn(
   async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[]),
@@ -15,9 +16,8 @@ const requirementCheckUpsertMock = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique: (...args: unknown[]) => findUniqueUserMock(...args) },
     travelReimbursement: {
-      findUnique: (...args: unknown[]) => findUniqueReimbursementMock(...args),
+      findFirst: (...args: unknown[]) => findFirstReimbursementMock(...args),
       update: (...args: unknown[]) => reimbursementUpdateMock(...args),
     },
     travelFinalRequirement: {
@@ -58,14 +58,15 @@ beforeEach(() => {
 });
 
 async function asDirector() {
-  authMock.mockResolvedValueOnce({ user: { id: "reviewer1" } });
-  findUniqueUserMock.mockResolvedValueOnce({ role: "DIRECTOR" });
+  getOrganizerIdMock.mockResolvedValueOnce({
+    userId: "reviewer1",
+    hackathonId: "h1",
+  });
 }
 
 describe("reviewTravelRequest", () => {
   test("errors when not an admin or director", async () => {
-    authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-    findUniqueUserMock.mockResolvedValueOnce({ role: "ORGANIZER" });
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await reviewTravelRequest(
       reimbursementId,
@@ -106,7 +107,7 @@ describe("reviewTravelRequest", () => {
 
   test("errors when the reimbursement is not found", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce(null);
+    findFirstReimbursementMock.mockResolvedValueOnce(null);
 
     const result = await reviewTravelRequest(
       reimbursementId,
@@ -119,7 +120,7 @@ describe("reviewTravelRequest", () => {
 
   test("errors when the reimbursement is not pending review", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "APPROVED",
       totalPriceCents: 1000,
@@ -136,7 +137,7 @@ describe("reviewTravelRequest", () => {
 
   test("errors when the approved amount exceeds the submitted total", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "PENDING_REVIEW",
       totalPriceCents: 500,
@@ -155,7 +156,7 @@ describe("reviewTravelRequest", () => {
 
   test("approves the request and creates a status event", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "PENDING_REVIEW",
       totalPriceCents: 5000,
@@ -195,7 +196,7 @@ describe("reviewTravelRequest", () => {
 
   test("requests changes with a note", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "PENDING_REVIEW",
       totalPriceCents: 5000,
@@ -221,8 +222,7 @@ describe("reviewTravelRequest", () => {
 
 describe("saveRequirementChecks", () => {
   test("errors when not an admin or director", async () => {
-    authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-    findUniqueUserMock.mockResolvedValueOnce({ role: "ORGANIZER" });
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await saveRequirementChecks(reimbursementId, {}, formData({}));
 
@@ -241,7 +241,7 @@ describe("saveRequirementChecks", () => {
 
   test("errors when the reimbursement is not found", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce(null);
+    findFirstReimbursementMock.mockResolvedValueOnce(null);
     findManyRequirementMock.mockResolvedValueOnce([]);
 
     const result = await saveRequirementChecks(reimbursementId, {}, formData({}));
@@ -251,7 +251,7 @@ describe("saveRequirementChecks", () => {
 
   test("errors when not in final review", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({ status: "APPROVED" });
+    findFirstReimbursementMock.mockResolvedValueOnce({ status: "APPROVED" });
     findManyRequirementMock.mockResolvedValueOnce([]);
 
     const result = await saveRequirementChecks(reimbursementId, {}, formData({}));
@@ -263,7 +263,7 @@ describe("saveRequirementChecks", () => {
 
   test("upserts checks for each active requirement", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       status: "FINAL_REVIEW",
     });
     findManyRequirementMock.mockResolvedValueOnce([
@@ -297,8 +297,7 @@ describe("saveRequirementChecks", () => {
 
 describe("finalApproveTravel", () => {
   test("errors when not an admin or director", async () => {
-    authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-    findUniqueUserMock.mockResolvedValueOnce({ role: "ORGANIZER" });
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await finalApproveTravel(reimbursementId, {}, formData({}));
 
@@ -317,7 +316,7 @@ describe("finalApproveTravel", () => {
 
   test("errors when missing a demo proof or not in final review", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "FINAL_REVIEW",
       demoUrl: null,
@@ -333,7 +332,7 @@ describe("finalApproveTravel", () => {
 
   test("errors when a requirement is not checked", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "FINAL_REVIEW",
       demoUrl: "https://example.com/demo",
@@ -349,7 +348,7 @@ describe("finalApproveTravel", () => {
 
   test("final-approves when all requirements are checked", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "FINAL_REVIEW",
       demoUrl: "https://example.com/demo",
@@ -377,7 +376,7 @@ describe("finalApproveTravel", () => {
 
   test("treats a requirement with no check record as unchecked", async () => {
     await asDirector();
-    findUniqueReimbursementMock.mockResolvedValueOnce({
+    findFirstReimbursementMock.mockResolvedValueOnce({
       id: reimbursementId,
       status: "FINAL_REVIEW",
       demoUrl: "https://example.com/demo",

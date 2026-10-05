@@ -1,4 +1,4 @@
-import { Gender, PrismaClient, Role } from "@prisma/client";
+import { Diet, Gender, PrismaClient, Role, TShirtSize } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -10,8 +10,8 @@ const demoUsers = [
     password: "DemoHacker123!",
     role: Role.HACKER,
     gender: Gender.NON_BINARY,
-    city: "Barcelona",
-    major: "Computer Science",
+    diet: Diet.VEGETARIAN,
+    tshirtSize: TShirtSize.M,
   },
   {
     name: "Demo Organizer",
@@ -19,8 +19,8 @@ const demoUsers = [
     password: "DemoOrganizer123!",
     role: Role.ADMIN,
     gender: Gender.PREFER_NOT_TO_SAY,
-    city: "Madrid",
-    major: "Event Management",
+    diet: Diet.OMNIVORE,
+    tshirtSize: TShirtSize.L,
   },
   {
     name: "Demo Director",
@@ -28,8 +28,8 @@ const demoUsers = [
     password: "DemoDirector123!",
     role: Role.DIRECTOR,
     gender: Gender.PREFER_NOT_TO_SAY,
-    city: "Valencia",
-    major: "Operations",
+    diet: Diet.VEGAN,
+    tshirtSize: TShirtSize.S,
   },
   {
     name: "Demo Plain Organizer",
@@ -37,8 +37,8 @@ const demoUsers = [
     password: "DemoOrganizer123!",
     role: Role.ORGANIZER,
     gender: Gender.PREFER_NOT_TO_SAY,
-    city: "Seville",
-    major: "Logistics",
+    diet: Diet.GLUTEN_FREE,
+    tshirtSize: TShirtSize.XL,
   },
 ];
 
@@ -107,37 +107,53 @@ const categories = [
 ];
 
 try {
+  let hackathon = await prisma.hackathon.findFirst({
+    where: { name: "BudgetHack Demo" },
+  });
+  if (!hackathon) {
+    hackathon = await prisma.hackathon.create({
+      data: { name: "BudgetHack Demo", travelReimbursementEnabled: true },
+    });
+  }
+  const hackathonId = hackathon.id;
+
   for (const user of demoUsers) {
     const passwordHash = await hash(user.password, 12);
 
-    await prisma.user.upsert({
+    const savedUser = await prisma.user.upsert({
       where: { email: user.email },
       update: {
         name: user.name,
         passwordHash,
-        role: user.role,
         gender: user.gender,
-        city: user.city,
-        major: user.major,
+        diet: user.diet,
+        tshirtSize: user.tshirtSize,
       },
       create: {
         name: user.name,
         email: user.email,
         passwordHash,
-        role: user.role,
         gender: user.gender,
-        city: user.city,
-        major: user.major,
+        diet: user.diet,
+        tshirtSize: user.tshirtSize,
       },
+    });
+
+    await prisma.hackathonMembership.upsert({
+      where: {
+        userId_hackathonId: { userId: savedUser.id, hackathonId },
+      },
+      update: { role: user.role },
+      create: { userId: savedUser.id, hackathonId, role: user.role },
     });
   }
 
   const departmentIdByCode = new Map();
   for (const department of departments) {
     const savedDepartment = await prisma.department.upsert({
-      where: { code: department.code },
+      where: { hackathonId_code: { hackathonId, code: department.code } },
       update: { name: department.name, active: true },
-      create: department,
+      create: { ...department, hackathonId },
     });
     departmentIdByCode.set(department.code, savedDepartment.id);
   }
@@ -145,9 +161,11 @@ try {
   for (const category of categories) {
     const { subcategories, ...categoryData } = category;
     const savedCategory = await prisma.category.upsert({
-      where: { name: category.name },
+      where: {
+        hackathonId_name: { hackathonId, name: category.name },
+      },
       update: { active: true },
-      create: categoryData,
+      create: { ...categoryData, hackathonId },
     });
 
     for (const { departmentCode, ...subcategory } of subcategories) {
@@ -171,6 +189,7 @@ try {
 
     await prisma.expense.updateMany({
       where: {
+        hackathonId,
         categoryId: null,
         categoryLabel: category.name,
       },
@@ -179,10 +198,10 @@ try {
   }
 
   await prisma.travelEventSettings.upsert({
-    where: { id: "event" },
+    where: { hackathonId },
     update: {},
     create: {
-      id: "event",
+      hackathonId,
       hackathonStartAt: new Date(Date.now() - 60 * 60 * 1000),
       reimbursementInstructions:
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Keep your ticket and follow the event desk instructions for reimbursement.",
@@ -197,9 +216,9 @@ try {
     "Travel ticket and identity details match",
   ]) {
     await prisma.travelFinalRequirement.upsert({
-      where: { name },
+      where: { hackathonId_name: { hackathonId, name } },
       update: {},
-      create: { name },
+      create: { hackathonId, name },
     });
   }
 
@@ -226,13 +245,15 @@ try {
     },
   ]) {
     await prisma.travelMessageTemplate.upsert({
-      where: { name: template.name },
+      where: {
+        hackathonId_name: { hackathonId, name: template.name },
+      },
       update: { message: template.message, active: true },
-      create: template,
+      create: { ...template, hackathonId },
     });
   }
 
-  console.log("Demo accounts, travel settings, and metadata are ready.");
+  console.log("Demo hackathon, accounts, travel settings, and metadata are ready.");
 } finally {
   await prisma.$disconnect();
 }

@@ -4,35 +4,63 @@ import { DeleteExpenseButton } from "@/components/delete-expense-button";
 import { EditExpenseButton } from "@/components/edit-expense-button";
 import { ExpenseInfoButton } from "@/components/expense-info-button";
 import { TicketViewerButton } from "@/components/ticket-viewer-button";
-import { ensureGeneralDepartment } from "@/lib/general-department";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
+import { getRoleSettings } from "@/lib/role-settings";
 import { formatMoney } from "@/lib/travel";
 
 export default async function ExpenseListPage() {
-  const user = await requireOrganizer(["ADMIN", "DIRECTOR", "ORGANIZER"]);
+  const user = await requireOrganizer([
+    "ADMIN",
+    "DIRECTOR",
+    "ORGANIZER",
+    "ORGANIZER_LEAD",
+  ]);
   const isAdmin = user.role === "ADMIN";
+  const { hackathonId } = user;
 
-  const generalDepartment = isAdmin ? await ensureGeneralDepartment() : null;
+  const roleSettings = getRoleSettings(user.hackathonSettings);
+  const roleSetting = roleSettings[user.role];
+  const canAddExpenses =
+    roleSetting.enabled && roleSetting.permissions.addExpenses;
+  // "Add expenses" only applies to the organizer's own department when
+  // their role is tied to one — admins/directors (and roles not linked to
+  // a department) can file an expense under any category.
+  const scopedDepartmentId = canAddExpenses ? user.departmentId : null;
+  const needsCategories = isAdmin || canAddExpenses;
 
-  const [expenses, categories, activeBudget, spendBySubcategory, spendByCategory] =
+  const [
+    expenses,
+    categories,
+    budgets,
+    activeBudget,
+    spendBySubcategory,
+    spendByCategory,
+  ] =
     await Promise.all([
       prisma.expense.findMany({
+        where: { hackathonId },
         include: { category: true, subcategory: true, department: true },
         orderBy: { incurredAt: "desc" },
       }),
-      isAdmin
+      needsCategories
         ? prisma.category.findMany({
-            where: { active: true },
+            where: {
+              hackathonId,
+              active: true,
+              ...(scopedDepartmentId
+                ? { departmentId: scopedDepartmentId }
+                : {}),
+            },
             select: {
               id: true,
               name: true,
+              department: { select: { name: true, color: true } },
               subcategories: {
                 where: { active: true },
                 select: {
                   id: true,
                   name: true,
-                  department: { select: { name: true } },
                 },
                 orderBy: { name: "asc" },
               },
@@ -40,8 +68,13 @@ export default async function ExpenseListPage() {
             orderBy: { name: "asc" },
           })
         : Promise.resolve([]),
+      prisma.budget.findMany({
+        where: { hackathonId },
+        select: { id: true, name: true, isActive: true },
+        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      }),
       prisma.budget.findFirst({
-        where: { isActive: true },
+        where: { hackathonId, isActive: true },
         include: {
           categories: {
             include: { subcategories: true },
@@ -51,23 +84,25 @@ export default async function ExpenseListPage() {
       prisma.expense.groupBy({
         by: ["subcategoryId"],
         _sum: { amountCents: true },
-        where: { subcategoryId: { not: null } },
+        where: { hackathonId, subcategoryId: { not: null } },
       }),
       prisma.expense.groupBy({
         by: ["categoryId"],
         _sum: { amountCents: true },
-        where: { categoryId: { not: null } },
+        where: { hackathonId, categoryId: { not: null } },
       }),
     ]);
 
   const formCategories = categories.map((category) => ({
     id: category.id,
     name: category.name,
-    departmentName: generalDepartment?.name ?? "General",
+    departmentName: category.department.name,
+    departmentColor: category.department.color,
     subcategories: category.subcategories.map((subcategory) => ({
       id: subcategory.id,
       name: subcategory.name,
-      departmentName: subcategory.department.name,
+      departmentName: category.department.name,
+      departmentColor: category.department.color,
     })),
   }));
 
@@ -134,9 +169,9 @@ export default async function ExpenseListPage() {
             Expense list
           </h1>
         </div>
-        {isAdmin &&
+        {canAddExpenses &&
           (activeBudget ? (
-            <AddExpenseButton categories={formCategories} />
+            <AddExpenseButton categories={formCategories} budgets={budgets} />
           ) : (
             <p className="max-w-xs text-right text-sm text-slate-500">
               Activate a budget before adding expenses.
@@ -173,7 +208,10 @@ export default async function ExpenseListPage() {
                       <span className="inline-flex items-center gap-2">
                         {expense.category?.name ?? expense.categoryLabel}
                         {expense.department && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          <span
+                            className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                            style={{ backgroundColor: expense.department.color }}
+                          >
                             {expense.department.name}
                           </span>
                         )}
@@ -219,11 +257,13 @@ export default async function ExpenseListPage() {
                           <>
                             <EditExpenseButton
                               categories={formCategories}
+                              budgets={budgets}
                               expense={{
                                 id: expense.id,
                                 description: expense.description,
                                 categoryId: expense.categoryId,
                                 subcategoryId: expense.subcategoryId,
+                                budgetId: expense.budgetId,
                                 amountCents: expense.amountCents,
                                 incurredAt: expense.incurredAt.toISOString(),
                                 vendor: expense.vendor,

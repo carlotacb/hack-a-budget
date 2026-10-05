@@ -3,23 +3,79 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 class AuthError extends Error {}
 vi.mock("next-auth", () => ({ AuthError }));
 
-const signInMock = vi.fn();
-vi.mock("@/auth", () => ({ signIn: (...args: unknown[]) => signInMock(...args) }));
+const redirectMock = vi.fn((url: string) => {
+  throw new Error(`NEXT_REDIRECT:${url}`);
+});
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => redirectMock(url),
+}));
 
-const findUniqueMock = vi.fn();
-const createMock = vi.fn();
+const signInMock = vi.fn();
+const signOutMock = vi.fn();
+const authMock = vi.fn<() => Promise<unknown>>(async () => null);
+vi.mock("@/auth", () => ({
+  signIn: (...args: unknown[]) => signInMock(...(args as [unknown])),
+  signOut: (...args: unknown[]) => signOutMock(...args),
+  auth: () => authMock(),
+}));
+
+const setActiveHackathonMock = vi.fn();
+vi.mock("@/lib/current-hackathon", () => ({
+  setActiveHackathon: (...args: unknown[]) => setActiveHackathonMock(...args),
+}));
+
+const compareMock = vi.fn(async () => false);
+vi.mock("bcryptjs", () => ({
+  hash: vi.fn(async () => "hashed-password"),
+  compare: (...args: unknown[]) => compareMock(...(args as [])),
+}));
+
+const userFindUniqueMock = vi.fn();
+const userCreateMock = vi.fn();
+const hackathonCreateMock = vi.fn();
+const membershipCreateMock = vi.fn();
+const membershipUpsertMock = vi.fn();
+const departmentCreateMock = vi.fn();
+const categoryCreateMock = vi.fn();
+const travelSettingsCreateMock = vi.fn();
+const hackerInviteFindUniqueMock = vi.fn();
+const hackerInviteUpdateMock = vi.fn();
+
+const tx = {
+  user: { findUnique: userFindUniqueMock, create: userCreateMock },
+  hackathon: { create: hackathonCreateMock },
+  hackathonMembership: {
+    create: membershipCreateMock,
+    upsert: membershipUpsertMock,
+  },
+  department: { create: departmentCreateMock },
+  category: { create: categoryCreateMock },
+  travelEventSettings: { create: travelSettingsCreateMock },
+  hackerInvite: {
+    findUnique: hackerInviteFindUniqueMock,
+    update: hackerInviteUpdateMock,
+  },
+};
+
+const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
+  callback(tx),
+);
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: {
-      findUnique: (...args: unknown[]) => findUniqueMock(...args),
-      create: (...args: unknown[]) => createMock(...args),
-    },
+    ...tx,
+    $transaction: (...args: Parameters<typeof transactionMock>) =>
+      transactionMock(...args),
   },
 }));
 
-vi.mock("bcryptjs", () => ({ hash: vi.fn(async () => "hashed-password") }));
-
-const { login, register, loginWithGoogle } = await import("@/app/actions/auth");
+const {
+  login,
+  registerHackathon,
+  registerWithInvite,
+  loginWithGoogle,
+} = await import("@/app/actions/auth");
+const { generateInviteToken } = await import("@/lib/hackathon");
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -31,6 +87,10 @@ function formData(fields: Record<string, string>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authMock.mockResolvedValue(null);
+  compareMock.mockResolvedValue(false);
+  hackathonCreateMock.mockResolvedValue({ id: "hackathon-1" });
+  departmentCreateMock.mockResolvedValue({ id: "general-dep-id" });
 });
 
 describe("login", () => {
@@ -89,49 +149,71 @@ describe("login", () => {
   });
 });
 
-describe("register", () => {
+describe("registerHackathon", () => {
   const validFields = {
+    hackathonName: "BudgetHack 2026",
     email: "New@Example.com",
     password: "password123",
     name: "Jane Doe",
     gender: "WOMAN",
-    city: "Barcelona",
-    major: "CS",
+    diet: "VEGETARIAN",
+    tshirtSize: "M",
+    travelReimbursementEnabled: "on",
   };
 
+  function registerFormData(fields: Record<string, string> = validFields) {
+    const fd = formData(fields);
+    fd.append("departments", "Design");
+    fd.append("departments", "Logistics");
+    fd.append("categories", "Catering");
+    return fd;
+  }
+
   test("returns a validation error for invalid fields", async () => {
-    const result = await register(
+    const result = await registerHackathon(
       {},
-      formData({ ...validFields, name: "J" }),
+      formData({ ...validFields, hackathonName: "A" }),
     );
 
-    expect(result.error).toBe("Complete name must be at least 2 characters.");
-    expect(findUniqueMock).not.toHaveBeenCalled();
+    expect(result.error).toBe(
+      "Hackathon name must be at least 2 characters.",
+    );
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  test("returns an error when the user already exists", async () => {
-    findUniqueMock.mockResolvedValueOnce({ id: "1" });
+  test("returns an error when the admin email exists and is not verified", async () => {
+    userFindUniqueMock.mockResolvedValueOnce({
+      id: "1",
+      passwordHash: "stored-hash",
+    });
 
-    const result = await register({}, formData(validFields));
+    const result = await registerHackathon({}, registerFormData());
 
-    expect(result.error).toBe("An account with this email already exists.");
-    expect(createMock).not.toHaveBeenCalled();
+    expect(result.error).toBe(
+      'An account with this email already exists. Use "Check email" to confirm it, or enter its password to add this hackathon to it.',
+    );
+    expect(hackathonCreateMock).not.toHaveBeenCalled();
   });
 
-  test("creates the user and signs in on success", async () => {
-    findUniqueMock.mockResolvedValueOnce(null);
-    createMock.mockResolvedValueOnce({ id: "1" });
+  test("adds the hackathon to an existing account when the password matches", async () => {
+    userFindUniqueMock.mockResolvedValueOnce({
+      id: "existing-user",
+      passwordHash: "stored-hash",
+    });
+    compareMock.mockResolvedValueOnce(true);
     signInMock.mockResolvedValueOnce(undefined);
 
-    const result = await register({}, formData(validFields));
+    const result = await registerHackathon({}, registerFormData());
 
-    expect(createMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        email: "new@example.com",
-        name: "Jane Doe",
-        role: "HACKER",
-      }),
+    expect(userCreateMock).not.toHaveBeenCalled();
+    expect(membershipCreateMock).toHaveBeenCalledWith({
+      data: {
+        userId: "existing-user",
+        hackathonId: "hackathon-1",
+        role: "ADMIN",
+      },
     });
+    expect(setActiveHackathonMock).toHaveBeenCalledWith("hackathon-1");
     expect(signInMock).toHaveBeenCalledWith("credentials", {
       email: "new@example.com",
       password: "password123",
@@ -140,28 +222,159 @@ describe("register", () => {
     expect(result).toEqual({});
   });
 
-  test("handles a race-condition duplicate email from prisma", async () => {
-    findUniqueMock.mockResolvedValueOnce(null);
-    const { Prisma } = await import("@prisma/client");
-    const prismaError = new Prisma.PrismaClientKnownRequestError("dup", {
-      code: "P2002",
-      clientVersion: "1",
+  test("creates the hackathon, admin, and initial metadata, then signs in", async () => {
+    userFindUniqueMock.mockResolvedValueOnce(null);
+    userCreateMock.mockResolvedValueOnce({ id: "user-1" });
+    signInMock.mockResolvedValueOnce(undefined);
+
+    const result = await registerHackathon({}, registerFormData());
+
+    expect(hackathonCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "BudgetHack 2026",
+        travelReimbursementEnabled: true,
+      }),
     });
-    createMock.mockRejectedValueOnce(prismaError);
-
-    const result = await register({}, formData(validFields));
-
-    expect(result.error).toBe("An account with this email already exists.");
-    expect(signInMock).not.toHaveBeenCalled();
+    expect(userCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        email: "new@example.com",
+        name: "Jane Doe",
+      }),
+    });
+    expect(membershipCreateMock).toHaveBeenCalledWith({
+      data: { userId: "user-1", hackathonId: "hackathon-1", role: "ADMIN" },
+    });
+    // General + the two listed departments.
+    expect(departmentCreateMock).toHaveBeenCalledTimes(3);
+    expect(categoryCreateMock).toHaveBeenCalledWith({
+      data: {
+        hackathonId: "hackathon-1",
+        name: "Catering",
+        departmentId: "general-dep-id",
+      },
+    });
+    expect(travelSettingsCreateMock).toHaveBeenCalledWith({
+      data: { hackathonId: "hackathon-1" },
+    });
+    expect(setActiveHackathonMock).toHaveBeenCalledWith("hackathon-1");
+    expect(signInMock).toHaveBeenCalledWith("credentials", {
+      email: "new@example.com",
+      password: "password123",
+      redirectTo: "/dashboard",
+    });
+    expect(result).toEqual({});
   });
 
-  test("rethrows unexpected prisma errors", async () => {
-    findUniqueMock.mockResolvedValueOnce(null);
-    createMock.mockRejectedValueOnce(new Error("db down"));
+  test("creates a hackathon for a signed-in user without asking for a profile", async () => {
+    authMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+    userFindUniqueMock.mockResolvedValueOnce({ id: "user-1" });
 
-    await expect(register({}, formData(validFields))).rejects.toThrow(
-      "db down",
+    await expect(
+      registerHackathon({}, formData({ hackathonName: "Second Hack" })),
+    ).rejects.toThrow("NEXT_REDIRECT:/dashboard");
+
+    expect(userCreateMock).not.toHaveBeenCalled();
+    expect(membershipCreateMock).toHaveBeenCalledWith({
+      data: { userId: "user-1", hackathonId: "hackathon-1", role: "ADMIN" },
+    });
+    expect(setActiveHackathonMock).toHaveBeenCalledWith("hackathon-1");
+  });
+});
+
+describe("registerWithInvite", () => {
+  const validFields = {
+    email: "Hacker@Example.com",
+    password: "password123",
+    name: "Jane Doe",
+    gender: "WOMAN",
+    diet: "VEGETARIAN",
+    tshirtSize: "M",
+  };
+
+  const invite = {
+    token: "good-token",
+    hackathonId: "hackathon-1",
+    usedAt: null,
+  };
+
+  test("returns an error for a missing or used invite", async () => {
+    hackerInviteFindUniqueMock.mockResolvedValueOnce(null);
+
+    const result = await registerWithInvite(
+      "bad-token",
+      {},
+      formData(validFields),
     );
+
+    expect(result.error).toBe(
+      "This invite link is invalid or has already been used.",
+    );
+    expect(userCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("creates the hacker and marks the invite used", async () => {
+    hackerInviteFindUniqueMock.mockResolvedValue(invite);
+    userFindUniqueMock.mockResolvedValueOnce(null);
+    userCreateMock.mockResolvedValueOnce({ id: "user-1" });
+    signInMock.mockResolvedValueOnce(undefined);
+
+    const result = await registerWithInvite(
+      "good-token",
+      {},
+      formData(validFields),
+    );
+
+    expect(userCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ email: "hacker@example.com" }),
+    });
+    expect(membershipCreateMock).toHaveBeenCalledWith({
+      data: { userId: "user-1", hackathonId: "hackathon-1", role: "HACKER" },
+    });
+    expect(hackerInviteUpdateMock).toHaveBeenCalledWith({
+      where: { token: "good-token" },
+      data: expect.objectContaining({ usedById: "user-1" }),
+    });
+    expect(setActiveHackathonMock).toHaveBeenCalledWith("hackathon-1");
+    expect(signInMock).toHaveBeenCalledWith("credentials", {
+      email: "hacker@example.com",
+      password: "password123",
+      redirectTo: "/dashboard",
+    });
+    expect(result).toEqual({});
+  });
+
+  test("adds the invite's hackathon to a signed-in user", async () => {
+    hackerInviteFindUniqueMock.mockResolvedValue(invite);
+    authMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+    userFindUniqueMock.mockResolvedValueOnce({ id: "user-1" });
+
+    await expect(
+      registerWithInvite("good-token", {}, formData({})),
+    ).rejects.toThrow("NEXT_REDIRECT:/dashboard");
+
+    expect(userCreateMock).not.toHaveBeenCalled();
+    expect(membershipUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: {
+          userId: "user-1",
+          hackathonId: "hackathon-1",
+          role: "HACKER",
+        },
+      }),
+    );
+    expect(hackerInviteUpdateMock).toHaveBeenCalledWith({
+      where: { token: "good-token" },
+      data: expect.objectContaining({ usedById: "user-1" }),
+    });
+  });
+});
+
+describe("generateInviteToken", () => {
+  test("generates a non-empty, url-safe token", () => {
+    const token = generateInviteToken();
+
+    expect(token.length).toBeGreaterThan(10);
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 });
 

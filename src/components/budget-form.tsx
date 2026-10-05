@@ -30,18 +30,43 @@ type Category = {
   isUnexpected: boolean;
   spentCents?: number;
   subcategories: Subcategory[];
+  department?: { name: string; color: string } | null;
 };
 
 type BudgetPlanFormProps = {
   budgetId: string;
   categories: Category[];
+  readOnly?: boolean;
 };
+
+function DepartmentTag({
+  department,
+}: {
+  department: { name: string; color: string } | null | undefined;
+}) {
+  if (!department) {
+    return null;
+  }
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white"
+      style={{ backgroundColor: department.color }}
+    >
+      {department.name}
+    </span>
+  );
+}
 
 function toDollars(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
-export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
+export function BudgetPlanForm({
+  budgetId,
+  categories,
+  readOnly = false,
+}: BudgetPlanFormProps) {
   const [state, formAction, pending] = useActionState(
     updateBudgetAmounts,
     initialState,
@@ -91,7 +116,10 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
           >
             {hasSubcategories ? (
               <div className="field">
-                <span>{category.name} budget</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  {category.name} budget
+                  <DepartmentTag department={category.department} />
+                </span>
                 <p
                   aria-label={`${category.name} budget`}
                   className="rounded-lg border border-transparent bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800"
@@ -104,23 +132,33 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
               </div>
             ) : (
               <>
-                <label className="field">
-                  <span>{category.name} budget</span>
-                  <input
-                    name={`budgetCategory:${category.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={values[`cat:${category.id}`] ?? ""}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [`cat:${category.id}`]: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
+                <div className="field">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {category.name} budget
+                    <DepartmentTag department={category.department} />
+                  </span>
+                  {readOnly ? (
+                    <p className="rounded-lg border border-transparent bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                      {currency.format(total)}
+                    </p>
+                  ) : (
+                    <input
+                      aria-label={`${category.name} budget`}
+                      name={`budgetCategory:${category.id}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={values[`cat:${category.id}`] ?? ""}
+                      onChange={(event) =>
+                        setValues((current) => ({
+                          ...current,
+                          [`cat:${category.id}`]: event.target.value,
+                        }))
+                      }
+                      required
+                    />
+                  )}
+                </div>
                 {typeof category.spentCents === "number" && (
                   <p className="mt-1 text-xs font-normal text-slate-500">
                     {currency.format(category.spentCents / 100)} already spent
@@ -139,20 +177,28 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
                 {category.subcategories.map((subcategory) => (
                   <label key={subcategory.id} className="field">
                     <span>{subcategory.name}</span>
-                    <input
-                      name={`budgetSubcategory:${subcategory.id}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={values[`sub:${subcategory.id}`] ?? ""}
-                      onChange={(event) =>
-                        setValues((current) => ({
-                          ...current,
-                          [`sub:${subcategory.id}`]: event.target.value,
-                        }))
-                      }
-                      required
-                    />
+                    {readOnly ? (
+                      <p className="rounded-lg border border-transparent bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                        {currency.format(
+                          Number(values[`sub:${subcategory.id}`] || 0),
+                        )}
+                      </p>
+                    ) : (
+                      <input
+                        name={`budgetSubcategory:${subcategory.id}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={values[`sub:${subcategory.id}`] ?? ""}
+                        onChange={(event) =>
+                          setValues((current) => ({
+                            ...current,
+                            [`sub:${subcategory.id}`]: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    )}
                     {typeof subcategory.spentCents === "number" && (
                       <span className="text-xs font-normal text-slate-500">
                         {currency.format(subcategory.spentCents / 100)} already
@@ -167,14 +213,18 @@ export function BudgetPlanForm({ budgetId, categories }: BudgetPlanFormProps) {
         );
       })}
 
-      {showMessage && state.error && <Toast kind="error">{state.error}</Toast>}
-      {showMessage && state.success && (
+      {!readOnly && showMessage && state.error && (
+        <Toast kind="error">{state.error}</Toast>
+      )}
+      {!readOnly && showMessage && state.success && (
         <Toast kind="success">Budget updated.</Toast>
       )}
 
-      <button className="primary-button w-full" disabled={pending}>
-        {pending ? "Saving..." : "Save budget"}
-      </button>
+      {!readOnly && (
+        <button className="primary-button w-full" disabled={pending}>
+          {pending ? "Saving..." : "Save budget"}
+        </button>
+      )}
     </form>
   );
 }

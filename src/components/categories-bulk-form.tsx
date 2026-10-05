@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import {
   type MetadataFormState,
   saveMetadata,
-} from "@/app/organizer/settings/metadata/actions";
+} from "@/app/organizer/settings/actions";
 import { MetadataForm } from "@/components/metadata-form";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 import { Toast } from "@/components/toast";
@@ -62,7 +62,6 @@ type Subcategory = {
   id: string;
   name: string;
   active: boolean;
-  departmentId: string;
   updatedAt: string | Date;
 };
 
@@ -70,6 +69,7 @@ type Category = {
   id: string;
   name: string;
   active: boolean;
+  departmentId: string;
   updatedAt: string | Date;
   subcategories: Subcategory[];
 };
@@ -84,11 +84,9 @@ const inactiveClasses =
 
 function SubcategoriesSection({
   category,
-  departments,
   deleting,
 }: {
   category: Category;
-  departments: Department[];
   deleting: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -115,11 +113,7 @@ function SubcategoriesSection({
           bulk save. */}
       <div hidden={collapsed} className="space-y-2 pb-3">
         <div className="add-subcategory">
-          <MetadataForm
-            operation="createSubcategory"
-            categoryId={category.id}
-            departments={departments}
-          />
+          <MetadataForm operation="createSubcategory" categoryId={category.id} />
         </div>
         <hr className="!my-4 border-slate-200" />
         {category.subcategories.map((subcategory) => (
@@ -136,21 +130,6 @@ function SubcategoriesSection({
                 placeholder="Name"
                 required
               />
-            </label>
-            <label className="field min-w-40 flex-[2]">
-              <span>Department</span>
-              <select
-                form={FORM_ID}
-                name={`subcategory:${subcategory.id}:departmentId`}
-                defaultValue={subcategory.departmentId}
-                required
-              >
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <DeleteButton
               formId={DELETE_SUBCATEGORY_FORM_ID}
@@ -263,6 +242,21 @@ export function CategoriesBulkForm({
                 required
               />
             </label>
+            <label className="field min-w-40 flex-[2]">
+              <span>Department</span>
+              <select
+                form={FORM_ID}
+                name={`category:${category.id}:departmentId`}
+                defaultValue={category.departmentId}
+                required
+              >
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <DeleteButton
               formId={DELETE_CATEGORY_FORM_ID}
               id={category.id}
@@ -280,11 +274,7 @@ export function CategoriesBulkForm({
               Active
             </label>
           </div>
-          <SubcategoriesSection
-            category={category}
-            departments={departments}
-            deleting={deleting}
-          />
+          <SubcategoriesSection category={category} deleting={deleting} />
         </article>
         );
       })}

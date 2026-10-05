@@ -6,9 +6,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
   editableTravelStatuses,
-  getHackerId,
+  getCurrentUser,
   parseLocalDateTime,
 } from "@/lib/travel";
+import { isTravelReimbursementEnabled } from "@/lib/hackathon";
 import { prisma } from "@/lib/prisma";
 
 export type TravelFormState = {
@@ -152,10 +153,16 @@ export async function saveTravelRequest(
   _state: TravelFormState,
   formData: FormData,
 ): Promise<TravelFormState> {
-  const hackerId = await getHackerId();
+  const user = await getCurrentUser();
 
-  if (!hackerId) {
+  if (!user || user.role !== "HACKER") {
     return { error: "Only hackers can submit travel reimbursements." };
+  }
+  const hackerId = user.id;
+  const { hackathonId } = user;
+
+  if (!(await isTravelReimbursementEnabled(hackathonId))) {
+    return { error: "Travel reimbursement is not enabled for this event." };
   }
 
   const parsed = travelSchema.safeParse(Object.fromEntries(formData));
@@ -220,7 +227,7 @@ export async function saveTravelRequest(
   }
 
   const existing = await prisma.travelReimbursement.findUnique({
-    where: { hackerId },
+    where: { hackathonId_hackerId: { hackathonId, hackerId } },
     select: { id: true, status: true, ticketPath: true },
   });
 
@@ -295,7 +302,7 @@ export async function saveTravelRequest(
             data,
           })
         : await tx.travelReimbursement.create({
-            data: { ...data, hackerId },
+            data: { ...data, hackerId, hackathonId },
           });
 
       await tx.travelStatusEvent.create({
@@ -343,11 +350,13 @@ export async function saveDemoProof(
   _state: TravelFormState,
   formData: FormData,
 ): Promise<TravelFormState> {
-  const hackerId = await getHackerId();
+  const user = await getCurrentUser();
 
-  if (!hackerId) {
+  if (!user || user.role !== "HACKER") {
     return { error: "Only hackers can submit demo proof." };
   }
+  const hackerId = user.id;
+  const { hackathonId } = user;
 
   const parsed = demoSchema.safeParse(Object.fromEntries(formData));
 
@@ -356,8 +365,10 @@ export async function saveDemoProof(
   }
 
   const [reimbursement, settings] = await Promise.all([
-    prisma.travelReimbursement.findUnique({ where: { hackerId } }),
-    prisma.travelEventSettings.findUnique({ where: { id: "event" } }),
+    prisma.travelReimbursement.findUnique({
+      where: { hackathonId_hackerId: { hackathonId, hackerId } },
+    }),
+    prisma.travelEventSettings.findUnique({ where: { hackathonId } }),
   ]);
 
   if (

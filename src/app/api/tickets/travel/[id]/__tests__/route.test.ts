@@ -5,11 +5,11 @@ vi.mock("@/lib/travel", () => ({
   getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args),
 }));
 
-const reimbursementFindUniqueMock = vi.fn();
+const reimbursementFindFirstMock = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     travelReimbursement: {
-      findUnique: (...args: unknown[]) => reimbursementFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => reimbursementFindFirstMock(...args),
     },
   },
 }));
@@ -36,12 +36,12 @@ describe("GET /api/tickets/travel/[id]", () => {
     const response = await GET(new Request("http://test"), params("r1"));
 
     expect(response.status).toBe(404);
-    expect(reimbursementFindUniqueMock).not.toHaveBeenCalled();
+    expect(reimbursementFindFirstMock).not.toHaveBeenCalled();
   });
 
   test("returns 404 when the reimbursement does not exist", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce(null);
+    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce(null);
 
     const response = await GET(new Request("http://test"), params("missing"));
 
@@ -49,8 +49,8 @@ describe("GET /api/tickets/travel/[id]", () => {
   });
 
   test("returns 404 for a hacker who does not own the reimbursement", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce({
+    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce({
       hackerId: "someone-else",
       ticketPath: "https://blob.example/travel-reimbursements/a.pdf",
     });
@@ -62,8 +62,8 @@ describe("GET /api/tickets/travel/[id]", () => {
   });
 
   test("allows the owning hacker", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce({
+    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce({
       hackerId: "hacker1",
       ticketPath: "https://blob.example/travel-reimbursements/a.pdf",
     });
@@ -79,8 +79,8 @@ describe("GET /api/tickets/travel/[id]", () => {
   });
 
   test("allows an ADMIN reviewer who does not own the reimbursement", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "admin1", role: "ADMIN" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce({
+    getCurrentUserMock.mockResolvedValueOnce({ id: "admin1", role: "ADMIN", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce({
       hackerId: "hacker1",
       ticketPath: "https://blob.example/travel-reimbursements/a.pdf",
     });
@@ -96,8 +96,8 @@ describe("GET /api/tickets/travel/[id]", () => {
   });
 
   test("blocks an ORGANIZER (not a reviewer role) who does not own the reimbursement", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "org1", role: "ORGANIZER" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce({
+    getCurrentUserMock.mockResolvedValueOnce({ id: "org1", role: "ORGANIZER", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce({
       hackerId: "hacker1",
       ticketPath: "https://blob.example/travel-reimbursements/a.pdf",
     });
@@ -108,8 +108,8 @@ describe("GET /api/tickets/travel/[id]", () => {
   });
 
   test("returns 404 when the blob can't be fetched", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER" });
-    reimbursementFindUniqueMock.mockResolvedValueOnce({
+    getCurrentUserMock.mockResolvedValueOnce({ id: "hacker1", role: "HACKER", hackathonId: "h1" });
+    reimbursementFindFirstMock.mockResolvedValueOnce({
       hackerId: "hacker1",
       ticketPath: "https://blob.example/travel-reimbursements/a.pdf",
     });

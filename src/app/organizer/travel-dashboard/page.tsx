@@ -1,8 +1,10 @@
 import type { TravelReimbursementStatus } from "@prisma/client";
 import { CheckCircle2, Users, Wallet, Banknote } from "lucide-react";
+import { redirect } from "next/navigation";
 import { BarList } from "@/components/bar-list";
 import { fetchEurRates } from "@/lib/currency";
 import { requireOrganizer } from "@/lib/organizer";
+import { isTravelReimbursementEnabled } from "@/lib/hackathon";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, transportLabels, travelStatusLabels } from "@/lib/travel";
 import { buildTravelDashboard, combineInEur } from "@/lib/travel-dashboard";
@@ -20,9 +22,14 @@ const statusBarClasses: Record<TravelReimbursementStatus, string> = {
 };
 
 export default async function TravelDashboardPage() {
-  await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const organizer = await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const { hackathonId } = organizer;
+  if (!(await isTravelReimbursementEnabled(hackathonId))) {
+    redirect("/organizer");
+  }
 
   const rows = await prisma.travelReimbursement.findMany({
+    where: { hackathonId },
     select: {
       status: true,
       originCity: true,

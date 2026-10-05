@@ -21,7 +21,7 @@ export function LandingNav() {
             Sign in
           </Link>
           <Link href="/register" className="primary-button !h-10 !px-5 text-sm">
-            Join as a hacker
+            Register a hackathon
           </Link>
         </div>
 
@@ -51,7 +51,7 @@ export function LandingNav() {
             className="primary-button !h-10 w-full !px-5 text-sm"
             onClick={() => setOpen(false)}
           >
-            Join as a hacker
+            Register a hackathon
           </Link>
         </div>
       )}

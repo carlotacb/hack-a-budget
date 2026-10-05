@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import {
   type MetadataFormState,
   saveMetadata,
-} from "@/app/organizer/settings/metadata/actions";
+} from "@/app/organizer/settings/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 
 const initialState: MetadataFormState = {};
@@ -56,6 +56,37 @@ export function TravelSettingsForm({
       <FormResult state={state} />
       <button className="primary-button" disabled={pending}>
         {pending ? "Saving..." : "Save travel settings"}
+      </button>
+    </form>
+  );
+}
+
+export function HackathonSettingsForm({
+  travelReimbursementEnabled,
+}: {
+  travelReimbursementEnabled: boolean;
+}) {
+  const [state, formAction, pending] = useActionState(
+    saveMetadata,
+    initialState,
+  );
+
+  return (
+    <form action={formAction} className="space-y-4">
+<FormPendingOverlay />
+      <input type="hidden" name="operation" value="updateHackathonSettings" />
+      <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+        <input
+          name="travelReimbursementEnabled"
+          type="checkbox"
+          defaultChecked={travelReimbursementEnabled}
+          className="h-4 w-4"
+        />
+        <span>Enable the travel reimbursement flow</span>
+      </label>
+      <FormResult state={state} />
+      <button className="primary-button" disabled={pending}>
+        {pending ? "Saving..." : "Save"}
       </button>
     </form>
   );

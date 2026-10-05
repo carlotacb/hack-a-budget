@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import {
   type MetadataFormState,
   saveMetadata,
-} from "@/app/organizer/settings/metadata/actions";
+} from "@/app/organizer/settings/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
@@ -33,7 +33,7 @@ export function MetadataForm({
     initialState,
   );
   const showMessage = useAutoDismiss(state);
-  const isSubcategory = operation === "createSubcategory";
+  const isCategory = operation === "createCategory";
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
@@ -46,7 +46,7 @@ export function MetadataForm({
         <span>New name</span>
         <input name="name" placeholder="Name" required />
       </label>
-      {isSubcategory && (
+      {isCategory && (
         <label className="field min-w-40 flex-[2]">
           <span>Department</span>
           <select name="departmentId" required defaultValue="">

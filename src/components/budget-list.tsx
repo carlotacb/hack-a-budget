@@ -26,7 +26,13 @@ type Budget = {
 const ACTIVATE_FORM_ID = "activate-budget-form";
 const DELETE_FORM_ID = "delete-budget-form";
 
-export function BudgetList({ budgets }: { budgets: Budget[] }) {
+export function BudgetList({
+  budgets,
+  canEdit = true,
+}: {
+  budgets: Budget[];
+  canEdit?: boolean;
+}) {
   const [createState, createAction, creating] = useActionState(
     manageBudgets,
     initialState,
@@ -54,7 +60,8 @@ export function BudgetList({ budgets }: { budgets: Budget[] }) {
 
   return (
     <div className="space-y-6">
-      <section className="dashboard-card">
+      {canEdit && (
+        <section className="dashboard-card">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">
           Create a new budget
         </h2>
@@ -115,7 +122,8 @@ export function BudgetList({ budgets }: { budgets: Budget[] }) {
             {creating ? "Creating..." : "Create budget"}
           </button>
         </form>
-      </section>
+        </section>
+      )}
 
       <section className="dashboard-card">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Budgets</h2>
@@ -154,9 +162,9 @@ export function BudgetList({ budgets }: { budgets: Budget[] }) {
                   href={`/organizer/budget/${budget.id}`}
                   className="secondary-button"
                 >
-                  Edit
+                  {canEdit ? "Edit" : "View"}
                 </Link>
-                {!budget.isActive && (
+                {canEdit && !budget.isActive && (
                   <button
                     type="submit"
                     form={ACTIVATE_FORM_ID}
@@ -168,7 +176,7 @@ export function BudgetList({ budgets }: { budgets: Budget[] }) {
                     Activate
                   </button>
                 )}
-                {!budget.isActive && (
+                {canEdit && !budget.isActive && (
                   <button
                     type="submit"
                     form={DELETE_FORM_ID}

@@ -6,7 +6,15 @@ vi.mock("@/app/organizer/actions", () => ({
   updateUserRole: (...args: unknown[]) => updateUserRoleMock(...args),
 }));
 
+import { DEFAULT_ROLE_SETTINGS } from "@/lib/role-settings";
+
 const { UserRoleButton } = await import("@/components/user-role-button");
+
+const defaultProps = {
+  currentDepartmentId: null,
+  roleSettings: DEFAULT_ROLE_SETTINGS,
+  departments: [],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -20,7 +28,12 @@ afterEach(() => {
 describe("UserRoleButton", () => {
   test("shows a static label instead of a form for the current user", () => {
     render(
-      <UserRoleButton userId="u1" currentRole="ADMIN" isCurrentUser />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="ADMIN"
+        isCurrentUser
+        {...defaultProps}
+      />,
     );
 
     expect(screen.getByText("Your account")).toBeTruthy();
@@ -29,7 +42,12 @@ describe("UserRoleButton", () => {
 
   test("renders a role selector and save button for other users", () => {
     render(
-      <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="HACKER"
+        isCurrentUser={false}
+        {...defaultProps}
+      />,
     );
 
     const select = screen.getByRole("combobox", {
@@ -42,7 +60,12 @@ describe("UserRoleButton", () => {
   test("does not submit when the role is unchanged", () => {
     const confirmSpy = vi.spyOn(window, "confirm");
     render(
-      <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="HACKER"
+        isCurrentUser={false}
+        {...defaultProps}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Save role" }));
@@ -55,7 +78,12 @@ describe("UserRoleButton", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     updateUserRoleMock.mockResolvedValueOnce({});
     render(
-      <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="HACKER"
+        isCurrentUser={false}
+        {...defaultProps}
+      />,
     );
 
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {
@@ -64,7 +92,7 @@ describe("UserRoleButton", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save role" }));
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      "Change this user's role from Hacker to Admin? Their access will update immediately.",
+      "Change this user's role from Participant to Admin? Their access will update immediately.",
     );
     await waitFor(() => {
       expect(updateUserRoleMock).toHaveBeenCalled();
@@ -74,7 +102,12 @@ describe("UserRoleButton", () => {
   test("does not submit when the user cancels the confirmation", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(
-      <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="HACKER"
+        isCurrentUser={false}
+        {...defaultProps}
+      />,
     );
 
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {
@@ -89,7 +122,12 @@ describe("UserRoleButton", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     updateUserRoleMock.mockResolvedValueOnce({ error: "Something went wrong" });
     render(
-      <UserRoleButton userId="u1" currentRole="HACKER" isCurrentUser={false} />,
+      <UserRoleButton
+        userId="u1"
+        currentRole="HACKER"
+        isCurrentUser={false}
+        {...defaultProps}
+      />,
     );
 
     fireEvent.change(screen.getByRole("combobox", { name: "User role" }), {

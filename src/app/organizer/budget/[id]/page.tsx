@@ -1,27 +1,49 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { BudgetPlanForm } from "@/components/budget-form";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
+import { getRoleSettings } from "@/lib/role-settings";
 
 export default async function BudgetPlanPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const organizer = await requireOrganizer();
+
+  const roleSettings = getRoleSettings(organizer.hackathonSettings);
+  const roleSetting = roleSettings[organizer.role];
+  if (!roleSetting.enabled || !roleSetting.permissions.seeBudget) {
+    redirect("/organizer");
+  }
+
+  const canEdit = organizer.role === "ADMIN" || organizer.role === "DIRECTOR";
+  // "See budget" only applies to the organizer's own department when their
+  // role is tied to one — admins/directors (and roles not linked to a
+  // department) keep the event-wide view.
+  const scopedDepartmentId = organizer.departmentId;
+  const { hackathonId } = organizer;
   const { id } = await params;
 
   const [budget, spendBySubcategory, spendByCategory] = await Promise.all([
-    prisma.budget.findUnique({
-      where: { id },
+    prisma.budget.findFirst({
+      where: { id, hackathonId },
       include: {
         categories: {
+          where: scopedDepartmentId
+            ? { category: { departmentId: scopedDepartmentId } }
+            : {},
           include: {
             subcategories: {
               include: { subcategory: { select: { active: true } } },
               orderBy: { name: "asc" },
+            },
+            category: {
+              select: {
+                department: { select: { name: true, color: true } },
+              },
             },
           },
           orderBy: [{ isUnexpected: "asc" }, { name: "asc" }],
@@ -31,16 +53,21 @@ export default async function BudgetPlanPage({
     prisma.expense.groupBy({
       by: ["subcategoryId"],
       _sum: { amountCents: true },
-      where: { subcategoryId: { not: null } },
+      where: { hackathonId, subcategoryId: { not: null } },
     }),
     prisma.expense.groupBy({
       by: ["categoryId"],
       _sum: { amountCents: true },
-      where: { categoryId: { not: null } },
+      where: { hackathonId, categoryId: { not: null } },
     }),
   ]);
 
   if (!budget) {
+    notFound();
+  }
+
+  const canSeePastBudgets = roleSetting.permissions.seePastBudgets;
+  if (!canEdit && !canSeePastBudgets && !budget.isActive) {
     notFound();
   }
 
@@ -59,6 +86,7 @@ export default async function BudgetPlanPage({
 
   const categories = budget.categories.map((category) => ({
     ...category,
+    department: category.category?.department ?? null,
     spentCents: category.categoryId
       ? (spentByCategoryId.get(category.categoryId) ?? 0)
       : 0,
@@ -95,7 +123,11 @@ export default async function BudgetPlanPage({
         </p>
       </div>
       <section className="dashboard-card">
-        <BudgetPlanForm budgetId={budget.id} categories={categories} />
+        <BudgetPlanForm
+          budgetId={budget.id}
+          categories={categories}
+          readOnly={!canEdit}
+        />
       </section>
     </main>
   );

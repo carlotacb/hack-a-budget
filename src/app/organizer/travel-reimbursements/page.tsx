@@ -1,6 +1,8 @@
 import type { TravelReimbursementStatus } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { TravelReimbursementsTable } from "@/components/travel-reimbursements-table";
 import { requireOrganizer } from "@/lib/organizer";
+import { isTravelReimbursementEnabled } from "@/lib/hackathon";
 import { prisma } from "@/lib/prisma";
 import {
   formatEventDateTime,
@@ -18,7 +20,11 @@ export default async function TravelReimbursementsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const organizer = await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const { hackathonId } = organizer;
+  if (!(await isTravelReimbursementEnabled(hackathonId))) {
+    redirect("/organizer");
+  }
   const { status } = await searchParams;
   const selectedStatus = statuses.includes(
     status as TravelReimbursementStatus,
@@ -26,7 +32,7 @@ export default async function TravelReimbursementsPage({
     ? (status as TravelReimbursementStatus)
     : undefined;
   const reimbursements = await prisma.travelReimbursement.findMany({
-    where: selectedStatus ? { status: selectedStatus } : undefined,
+    where: { hackathonId, ...(selectedStatus ? { status: selectedStatus } : {}) },
     include: {
       hacker: { select: { name: true, email: true } },
     },

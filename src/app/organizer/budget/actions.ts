@@ -3,6 +3,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ensureGeneralDepartment } from "@/lib/general-department";
 import { getOrganizerId } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 import { UNEXPECTED_CATEGORY_NAME } from "@/lib/budget-constants";
@@ -30,22 +31,29 @@ type Tx = Omit<
 /** The "Unexpected expenses" category is a real Category so it can also
  * hold real expenses, but it's excluded from the automatic per-category
  * budget list and always injected as its own plan row instead. */
-async function getOrCreateUnexpectedCategory(tx: Tx) {
-  const existing = await tx.category.findUnique({
-    where: { name: UNEXPECTED_CATEGORY_NAME },
+async function getOrCreateUnexpectedCategory(tx: Tx, hackathonId: string) {
+  const existing = await tx.category.findFirst({
+    where: { hackathonId, name: UNEXPECTED_CATEGORY_NAME },
   });
   if (existing) return existing;
 
+  const generalDepartment = await ensureGeneralDepartment(hackathonId, tx);
+
   return tx.category.create({
-    data: { name: UNEXPECTED_CATEGORY_NAME, budgetCents: 0 },
+    data: {
+      hackathonId,
+      name: UNEXPECTED_CATEGORY_NAME,
+      budgetCents: 0,
+      departmentId: generalDepartment.id,
+    },
   });
 }
 
 /** Ensures the "Unexpected expenses" category exists, for pages (like
  * metadata settings) that need to show/protect it outside a budget
  * transaction. */
-export async function ensureUnexpectedCategory() {
-  return getOrCreateUnexpectedCategory(prisma);
+export async function ensureUnexpectedCategory(hackathonId: string) {
+  return getOrCreateUnexpectedCategory(prisma, hackathonId);
 }
 
 /** Copies a budget plan's amounts onto the live Category/Subcategory
@@ -97,14 +105,18 @@ async function recalculateBudgetCategoryTotal(tx: Tx, budgetCategoryId: string) 
 }
 
 async function createBudgetPlan(
+  hackathonId: string,
   name: string,
   sourceBudgetId: string | null,
 ): Promise<BudgetFormState> {
   await prisma.$transaction(async (tx) => {
-    const unexpectedCategory = await getOrCreateUnexpectedCategory(tx);
+    const unexpectedCategory = await getOrCreateUnexpectedCategory(
+      tx,
+      hackathonId,
+    );
 
     const categories = await tx.category.findMany({
-      where: { active: true, id: { not: unexpectedCategory.id } },
+      where: { hackathonId, active: true, id: { not: unexpectedCategory.id } },
       include: { subcategories: { where: { active: true } } },
       orderBy: { name: "asc" },
     });
@@ -140,6 +152,7 @@ async function createBudgetPlan(
 
     await tx.budget.create({
       data: {
+        hackathonId,
         name,
         basedOnId: sourceBudgetId,
         categories: {
@@ -188,11 +201,12 @@ async function createBudgetPlan(
  * Keeps the active plan's shape in sync with what expenses can be logged
  * against, without silently mutating budgets someone else is drafting. */
 export async function syncNewCategoryToActiveBudget(
+  hackathonId: string,
   categoryId: string,
   name: string,
 ) {
   const activeBudget = await prisma.budget.findFirst({
-    where: { isActive: true },
+    where: { hackathonId, isActive: true },
   });
   if (!activeBudget) return;
 
@@ -213,12 +227,13 @@ export async function syncNewCategoryToActiveBudget(
 }
 
 export async function syncNewSubcategoryToActiveBudget(
+  hackathonId: string,
   subcategoryId: string,
   categoryId: string,
   name: string,
 ) {
   const activeBudget = await prisma.budget.findFirst({
-    where: { isActive: true },
+    where: { hackathonId, isActive: true },
   });
   if (!activeBudget) return;
 
@@ -267,9 +282,11 @@ export async function manageBudgets(
   _state: BudgetFormState,
   formData: FormData,
 ): Promise<BudgetFormState> {
-  if (!(await getOrganizerId(["ADMIN", "DIRECTOR"]))) {
+  const organizer = await getOrganizerId(["ADMIN", "DIRECTOR"]);
+  if (!organizer) {
     return { error: "Only admins and directors can manage budgets." };
   }
+  const { hackathonId } = organizer;
 
   const operation = formData.get("operation");
 
@@ -286,10 +303,16 @@ export async function manageBudgets(
       if (typeof sourceBudgetId !== "string" || !sourceBudgetId) {
         return { error: "Choose a budget to base this one on." };
       }
-      return createBudgetPlan(name.data, sourceBudgetId);
+      const source = await prisma.budget.findFirst({
+        where: { id: sourceBudgetId, hackathonId },
+      });
+      if (!source) {
+        return { error: "That budget no longer exists." };
+      }
+      return createBudgetPlan(hackathonId, name.data, sourceBudgetId);
     }
 
-    return createBudgetPlan(name.data, null);
+    return createBudgetPlan(hackathonId, name.data, null);
   }
 
   if (operation === "activateBudget") {
@@ -298,10 +321,17 @@ export async function manageBudgets(
       return { error: "That budget no longer exists." };
     }
 
+    const target = await prisma.budget.findFirst({
+      where: { id, hackathonId },
+    });
+    if (!target) {
+      return { error: "That budget no longer exists." };
+    }
+
     try {
       await prisma.$transaction(async (tx) => {
         await tx.budget.updateMany({
-          where: { isActive: true },
+          where: { hackathonId, isActive: true },
           data: { isActive: false },
         });
         await tx.budget.update({
@@ -330,7 +360,9 @@ export async function manageBudgets(
       return { error: "That budget no longer exists." };
     }
 
-    const budget = await prisma.budget.findUnique({ where: { id } });
+    const budget = await prisma.budget.findFirst({
+      where: { id, hackathonId },
+    });
     if (!budget) {
       return { error: "That budget no longer exists." };
     }
@@ -350,9 +382,11 @@ export async function updateBudgetAmounts(
   _state: BudgetFormState,
   formData: FormData,
 ): Promise<BudgetFormState> {
-  if (!(await getOrganizerId(["ADMIN", "DIRECTOR"]))) {
+  const organizer = await getOrganizerId(["ADMIN", "DIRECTOR"]);
+  if (!organizer) {
     return { error: "Only admins and directors can update budgets." };
   }
+  const { hackathonId } = organizer;
 
   const budgetId = formData.get("budgetId");
   if (typeof budgetId !== "string" || !budgetId) {
@@ -381,7 +415,9 @@ export async function updateBudgetAmounts(
     }
   }
 
-  const budget = await prisma.budget.findUnique({ where: { id: budgetId } });
+  const budget = await prisma.budget.findFirst({
+    where: { id: budgetId, hackathonId },
+  });
   if (!budget) {
     return { error: "That budget no longer exists." };
   }

@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { del, put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ensureGeneralDepartment } from "@/lib/general-department";
 import { getOrganizerId } from "@/lib/organizer";
+import { getPermittedOrganizer } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export type ExpenseFormState = {
@@ -17,6 +17,7 @@ const expenseSchema = z.object({
   description: z.string().trim().min(2, "Add a short description."),
   categoryId: z.string().cuid("Select a valid category."),
   subcategoryId: z.string().optional(),
+  budgetId: z.string().optional(),
   amount: z.coerce.number().positive("Amount must be greater than zero."),
   incurredAt: z
     .string()
@@ -68,15 +69,25 @@ async function saveTicket(ticket: File) {
 }
 
 /** Validates the category/subcategory pair and returns the department the
- * expense should be attributed to: the subcategory's own department, or the
- * General department for categories with no subcategories (Unexpected
- * expenses). The department is never taken from client input. */
+ * expense should be attributed to: the category's own department (which
+ * all of its subcategories inherit). The department is never taken from
+ * client input. */
 async function resolveCategoryAndDepartment(
+  hackathonId: string,
   categoryId: string,
   subcategoryId: string | undefined,
+  // When the organizer's "add expenses" permission is scoped to their own
+  // department, only categories belonging to that department may be used
+  // — never trust the client to enforce this.
+  scopedDepartmentId?: string | null,
 ) {
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, active: true },
+    where: {
+      id: categoryId,
+      hackathonId,
+      active: true,
+      ...(scopedDepartmentId ? { departmentId: scopedDepartmentId } : {}),
+    },
     include: {
       subcategories: {
         where: subcategoryId
@@ -100,30 +111,54 @@ async function resolveCategoryAndDepartment(
     return {
       category,
       subcategory,
-      departmentId: subcategory.departmentId,
+      departmentId: category.departmentId,
     } as const;
   }
 
-  const generalDepartment = await ensureGeneralDepartment();
   return {
     category,
     subcategory: null,
-    departmentId: generalDepartment.id,
+    departmentId: category.departmentId,
   } as const;
+}
+
+/** Resolves which budget an expense should be attributed to: the
+ * client-picked budget if it's valid for this hackathon, falling back to
+ * whichever budget is currently active. Never trusts a budget ID that
+ * doesn't belong to the hackathon. */
+async function resolveBudgetId(
+  hackathonId: string,
+  requestedBudgetId: string | undefined,
+  fallbackBudgetId: string | null,
+) {
+  if (requestedBudgetId) {
+    const budget = await prisma.budget.findFirst({
+      where: { id: requestedBudgetId, hackathonId },
+      select: { id: true },
+    });
+    if (!budget) {
+      return { error: "The selected budget is no longer available." } as const;
+    }
+    return { budgetId: budget.id } as const;
+  }
+
+  return { budgetId: fallbackBudgetId } as const;
 }
 
 export async function addExpense(
   _state: ExpenseFormState,
   formData: FormData,
 ): Promise<ExpenseFormState> {
-  const organizerId = await getOrganizerId(["ADMIN"]);
+  const organizer = await getPermittedOrganizer("addExpenses");
 
-  if (!organizerId) {
+  if (!organizer) {
     return { error: "You are not authorized to add expenses." };
   }
+  const { userId: organizerId, hackathonId, departmentId: scopedDepartmentId } =
+    organizer;
 
   const activeBudget = await prisma.budget.findFirst({
-    where: { isActive: true },
+    where: { hackathonId, isActive: true },
     select: { id: true },
   });
 
@@ -144,12 +179,24 @@ export async function addExpense(
   }
 
   const resolved = await resolveCategoryAndDepartment(
+    hackathonId,
     parsed.data.categoryId,
     parsed.data.subcategoryId,
+    scopedDepartmentId,
   );
 
   if ("error" in resolved) {
     return { error: resolved.error };
+  }
+
+  const resolvedBudget = await resolveBudgetId(
+    hackathonId,
+    parsed.data.budgetId,
+    activeBudget.id,
+  );
+
+  if ("error" in resolvedBudget) {
+    return { error: resolvedBudget.error };
   }
 
   const ticket = formData.get("ticket");
@@ -173,11 +220,13 @@ export async function addExpense(
         categoryId: resolved.category.id,
         subcategoryId: resolved.subcategory?.id ?? null,
         departmentId: resolved.departmentId,
+        budgetId: resolvedBudget.budgetId,
         amountCents: Math.round(parsed.data.amount * 100),
         incurredAt,
         vendor: parsed.data.vendor,
         ticketPath,
         organizerId,
+        hackathonId,
       },
     });
   } catch (error) {
@@ -198,18 +247,21 @@ export async function updateExpense(
   _state: ExpenseFormState,
   formData: FormData,
 ): Promise<ExpenseFormState> {
-  const organizerId = await getOrganizerId(["ADMIN"]);
+  const organizer = await getOrganizerId(["ADMIN"]);
 
-  if (!organizerId) {
+  if (!organizer) {
     return { error: "You are not authorized to edit expenses." };
   }
+  const { hackathonId } = organizer;
 
   const id = formData.get("id");
   if (typeof id !== "string" || !id) {
     return { error: "That expense no longer exists." };
   }
 
-  const existing = await prisma.expense.findUnique({ where: { id } });
+  const existing = await prisma.expense.findFirst({
+    where: { id, hackathonId },
+  });
   if (!existing) {
     return { error: "That expense no longer exists." };
   }
@@ -227,12 +279,23 @@ export async function updateExpense(
   }
 
   const resolved = await resolveCategoryAndDepartment(
+    hackathonId,
     parsed.data.categoryId,
     parsed.data.subcategoryId,
   );
 
   if ("error" in resolved) {
     return { error: resolved.error };
+  }
+
+  const resolvedBudget = await resolveBudgetId(
+    hackathonId,
+    parsed.data.budgetId,
+    existing.budgetId,
+  );
+
+  if ("error" in resolvedBudget) {
+    return { error: resolvedBudget.error };
   }
 
   const ticket = formData.get("ticket");
@@ -259,6 +322,7 @@ export async function updateExpense(
         categoryId: resolved.category.id,
         subcategoryId: resolved.subcategory?.id ?? null,
         departmentId: resolved.departmentId,
+        budgetId: resolvedBudget.budgetId,
         amountCents: Math.round(parsed.data.amount * 100),
         incurredAt,
         vendor: parsed.data.vendor,
@@ -289,9 +353,9 @@ export async function deleteExpense(
   _state: ExpenseFormState,
   formData: FormData,
 ): Promise<ExpenseFormState> {
-  const organizerId = await getOrganizerId(["ADMIN"]);
+  const organizer = await getOrganizerId(["ADMIN"]);
 
-  if (!organizerId) {
+  if (!organizer) {
     return { error: "You are not authorized to delete expenses." };
   }
 
@@ -300,7 +364,9 @@ export async function deleteExpense(
     return { error: "That expense no longer exists." };
   }
 
-  const existing = await prisma.expense.findUnique({ where: { id } });
+  const existing = await prisma.expense.findFirst({
+    where: { id, hackathonId: organizer.hackathonId },
+  });
   if (!existing) {
     return { error: "That expense no longer exists." };
   }

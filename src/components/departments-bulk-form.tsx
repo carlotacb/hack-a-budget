@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import {
   type MetadataFormState,
   saveMetadata,
-} from "@/app/organizer/settings/metadata/actions";
+} from "@/app/organizer/settings/actions";
 import { FormPendingOverlay } from "@/components/loading-overlay";
 import { Toast } from "@/components/toast";
 import { useAutoDismiss } from "@/components/use-auto-dismiss";
@@ -20,6 +20,7 @@ type Department = {
   code: string;
   name: string;
   active: boolean;
+  color: string;
   updatedAt: string | Date;
 };
 
@@ -101,6 +102,16 @@ export function DepartmentsBulkForm({ departments }: DepartmentsBulkFormProps) {
                   defaultValue={department.name}
                   placeholder="Name"
                   required
+                />
+              </label>
+              <label className="field w-20">
+                <span>Color</span>
+                <input
+                  name={`department:${department.id}:color`}
+                  type="color"
+                  defaultValue={department.color}
+                  aria-label={`${department.name} color`}
+                  className="h-12 w-full cursor-pointer rounded-lg border border-slate-200 p-1"
                 />
               </label>
               <button

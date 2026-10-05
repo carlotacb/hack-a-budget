@@ -24,8 +24,8 @@ function formData(fields: Record<string, string>) {
 const validFields = {
   name: "Jane Doe",
   gender: "WOMAN",
-  city: "Barcelona",
-  major: "CS",
+  diet: "VEGETARIAN",
+  tshirtSize: "M",
 };
 
 beforeEach(() => {
@@ -45,9 +45,12 @@ describe("updateProfile", () => {
   test("errors on invalid fields", async () => {
     authMock.mockResolvedValueOnce({ user: { id: "u1" } });
 
-    const result = await updateProfile({}, formData({ ...validFields, city: "B" }));
+    const result = await updateProfile(
+      {},
+      formData({ ...validFields, gender: "INVALID" }),
+    );
 
-    expect(result.error).toBe("City must be at least 2 characters.");
+    expect(result.error).toBeTruthy();
   });
 
   test("errors when the account cannot be found", async () => {
@@ -71,8 +74,8 @@ describe("updateProfile", () => {
       data: {
         name: "Jane Doe",
         gender: "WOMAN",
-        city: "Barcelona",
-        major: "CS",
+        diet: "VEGETARIAN",
+        tshirtSize: "M",
       },
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/profile");

@@ -5,10 +5,10 @@ vi.mock("@/lib/organizer", () => ({
   getOrganizerId: (...args: unknown[]) => getOrganizerIdMock(...args),
 }));
 
-const expenseFindUniqueMock = vi.fn();
+const expenseFindFirstMock = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    expense: { findUnique: (...args: unknown[]) => expenseFindUniqueMock(...args) },
+    expense: { findFirst: (...args: unknown[]) => expenseFindFirstMock(...args) },
   },
 }));
 
@@ -34,12 +34,12 @@ describe("GET /api/tickets/expense/[id]", () => {
     const response = await GET(new Request("http://test"), params("e1"));
 
     expect(response.status).toBe(404);
-    expect(expenseFindUniqueMock).not.toHaveBeenCalled();
+    expect(expenseFindFirstMock).not.toHaveBeenCalled();
   });
 
   test("returns 404 when the expense has no ticket", async () => {
-    getOrganizerIdMock.mockResolvedValueOnce("u1");
-    expenseFindUniqueMock.mockResolvedValueOnce({ ticketPath: null });
+    getOrganizerIdMock.mockResolvedValueOnce({ userId: "u1", hackathonId: "h1" });
+    expenseFindFirstMock.mockResolvedValueOnce({ ticketPath: null });
 
     const response = await GET(new Request("http://test"), params("e1"));
 
@@ -47,8 +47,8 @@ describe("GET /api/tickets/expense/[id]", () => {
   });
 
   test("returns 404 when the expense does not exist", async () => {
-    getOrganizerIdMock.mockResolvedValueOnce("u1");
-    expenseFindUniqueMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce({ userId: "u1", hackathonId: "h1" });
+    expenseFindFirstMock.mockResolvedValueOnce(null);
 
     const response = await GET(new Request("http://test"), params("missing"));
 
@@ -56,8 +56,8 @@ describe("GET /api/tickets/expense/[id]", () => {
   });
 
   test("returns 404 when the blob can't be fetched", async () => {
-    getOrganizerIdMock.mockResolvedValueOnce("u1");
-    expenseFindUniqueMock.mockResolvedValueOnce({
+    getOrganizerIdMock.mockResolvedValueOnce({ userId: "u1", hackathonId: "h1" });
+    expenseFindFirstMock.mockResolvedValueOnce({
       ticketPath: "https://blob.example/tickets/a.pdf",
     });
     getBlobMock.mockRejectedValueOnce(new Error("not found"));
@@ -68,8 +68,8 @@ describe("GET /api/tickets/expense/[id]", () => {
   });
 
   test("streams the ticket with its content type for an authorized caller", async () => {
-    getOrganizerIdMock.mockResolvedValueOnce("u1");
-    expenseFindUniqueMock.mockResolvedValueOnce({
+    getOrganizerIdMock.mockResolvedValueOnce({ userId: "u1", hackathonId: "h1" });
+    expenseFindFirstMock.mockResolvedValueOnce({
       ticketPath: "https://blob.example/tickets/a.pdf",
     });
     const stream = new ReadableStream();
