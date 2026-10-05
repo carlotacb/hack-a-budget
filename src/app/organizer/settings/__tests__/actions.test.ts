@@ -1,29 +1,47 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
-const authMock = vi.fn();
-vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
+vi.mock("@/auth", () => ({ auth: vi.fn() }));
 
-const findUniqueMock = vi.fn();
+const getOrganizerIdMock = vi.fn();
+vi.mock("@/lib/organizer", () => ({
+  getOrganizerId: (...args: unknown[]) => getOrganizerIdMock(...args),
+}));
+
+const syncNewCategoryMock = vi.fn();
+const syncNewSubcategoryMock = vi.fn();
+vi.mock("@/app/organizer/budget/actions", () => ({
+  syncNewCategoryToActiveBudget: (...args: unknown[]) =>
+    syncNewCategoryMock(...args),
+  syncNewSubcategoryToActiveBudget: (...args: unknown[]) =>
+    syncNewSubcategoryMock(...args),
+}));
+
+const hackathonFindUniqueMock = vi.fn();
+const hackathonUpdateMock = vi.fn();
 const categoryCreateMock = vi.fn();
-const categoryUpdateMock = vi.fn();
-const categoryFindUniqueMock = vi.fn();
-const subcategoryCreateMock = vi.fn();
-const subcategoryUpdateMock = vi.fn();
-const departmentCreateMock = vi.fn();
-const departmentUpdateMock = vi.fn();
-const departmentFindUniqueMock = vi.fn();
-const departmentFindManyMock = vi.fn();
-const departmentDeleteMock = vi.fn();
+const categoryFindFirstMock = vi.fn();
 const categoryDeleteMock = vi.fn();
+const categoryCountMock = vi.fn();
+const categoryUpdateManyMock = vi.fn();
+const subcategoryCreateMock = vi.fn();
+const subcategoryFindFirstMock = vi.fn();
 const subcategoryDeleteMock = vi.fn();
-const expenseCountMock = vi.fn().mockResolvedValue(0);
-const subcategoryCountMock = vi.fn();
+const subcategoryUpdateManyMock = vi.fn();
+const departmentCreateMock = vi.fn();
+const departmentFindFirstMock = vi.fn();
+const departmentFindManyMock = vi.fn();
+const departmentCountMock = vi.fn();
+const departmentDeleteMock = vi.fn();
+const departmentUpdateManyMock = vi.fn();
+const expenseCountMock = vi.fn();
 const travelSettingsUpsertMock = vi.fn();
 const travelRequirementCreateMock = vi.fn();
-const travelRequirementUpdateMock = vi.fn();
+const travelRequirementUpdateManyMock = vi.fn();
 const travelMessageTemplateCreateMock = vi.fn();
-const travelMessageTemplateUpdateMock = vi.fn();
-const budgetFindFirstMock = vi.fn().mockResolvedValue(null);
+const travelMessageTemplateUpdateManyMock = vi.fn();
+const budgetFindFirstMock = vi.fn();
+const budgetCategoryUpdateManyMock = vi.fn();
+const budgetSubcategoryUpdateManyMock = vi.fn();
 const transactionMock = vi.fn(async (...args: unknown[]) => {
   const [ops] = args;
   if (Array.isArray(ops)) return Promise.all(ops);
@@ -32,42 +50,56 @@ const transactionMock = vi.fn(async (...args: unknown[]) => {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique: (...args: unknown[]) => findUniqueMock(...args) },
+    hackathon: {
+      findUnique: (...args: unknown[]) => hackathonFindUniqueMock(...args),
+      update: (...args: unknown[]) => hackathonUpdateMock(...args),
+    },
     category: {
       create: (...args: unknown[]) => categoryCreateMock(...args),
-      update: (...args: unknown[]) => categoryUpdateMock(...args),
-      findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => categoryFindFirstMock(...args),
       delete: (...args: unknown[]) => categoryDeleteMock(...args),
+      count: (...args: unknown[]) => categoryCountMock(...args),
+      updateMany: (...args: unknown[]) => categoryUpdateManyMock(...args),
     },
     subcategory: {
       create: (...args: unknown[]) => subcategoryCreateMock(...args),
-      update: (...args: unknown[]) => subcategoryUpdateMock(...args),
-      count: (...args: unknown[]) => subcategoryCountMock(...args),
+      findFirst: (...args: unknown[]) => subcategoryFindFirstMock(...args),
       delete: (...args: unknown[]) => subcategoryDeleteMock(...args),
-    },
-    expense: {
-      count: (...args: unknown[]) => expenseCountMock(...args),
+      updateMany: (...args: unknown[]) => subcategoryUpdateManyMock(...args),
     },
     department: {
       create: (...args: unknown[]) => departmentCreateMock(...args),
-      update: (...args: unknown[]) => departmentUpdateMock(...args),
-      findUnique: (...args: unknown[]) => departmentFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => departmentFindFirstMock(...args),
       findMany: (...args: unknown[]) => departmentFindManyMock(...args),
+      count: (...args: unknown[]) => departmentCountMock(...args),
       delete: (...args: unknown[]) => departmentDeleteMock(...args),
+      updateMany: (...args: unknown[]) => departmentUpdateManyMock(...args),
+    },
+    expense: {
+      count: (...args: unknown[]) => expenseCountMock(...args),
     },
     travelEventSettings: {
       upsert: (...args: unknown[]) => travelSettingsUpsertMock(...args),
     },
     travelFinalRequirement: {
       create: (...args: unknown[]) => travelRequirementCreateMock(...args),
-      update: (...args: unknown[]) => travelRequirementUpdateMock(...args),
+      updateMany: (...args: unknown[]) =>
+        travelRequirementUpdateManyMock(...args),
     },
     travelMessageTemplate: {
       create: (...args: unknown[]) => travelMessageTemplateCreateMock(...args),
-      update: (...args: unknown[]) => travelMessageTemplateUpdateMock(...args),
+      updateMany: (...args: unknown[]) =>
+        travelMessageTemplateUpdateManyMock(...args),
     },
     budget: {
       findFirst: (...args: unknown[]) => budgetFindFirstMock(...args),
+    },
+    budgetCategory: {
+      updateMany: (...args: unknown[]) => budgetCategoryUpdateManyMock(...args),
+    },
+    budgetSubcategory: {
+      updateMany: (...args: unknown[]) =>
+        budgetSubcategoryUpdateManyMock(...args),
     },
     $transaction: (...args: unknown[]) => transactionMock(...args),
   },
@@ -78,9 +110,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
 }));
 
-const { saveMetadata } = await import(
-  "@/app/organizer/settings/actions"
-);
+const { saveMetadata } = await import("@/app/organizer/settings/actions");
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -88,59 +118,77 @@ function formData(fields: Record<string, string>) {
   return fd;
 }
 
+const HACKATHON_ID = "h1";
+const departmentId = "clabcdefghijklmnopqrstu2";
+
 beforeEach(() => {
   vi.clearAllMocks();
-  departmentFindUniqueMock.mockResolvedValue({
-    id: "general-dep-id",
-    code: "general",
+  hackathonFindUniqueMock.mockResolvedValue({
+    travelReimbursementEnabled: true,
   });
-  categoryFindUniqueMock.mockResolvedValue({
-    id: "cat-generic-id",
-    name: "Food",
-  });
+  categoryFindFirstMock.mockResolvedValue({ id: "cat-generic-id", name: "Food" });
+  subcategoryFindFirstMock.mockResolvedValue({ id: "sub-generic-id" });
+  departmentFindFirstMock.mockResolvedValue({ id: departmentId, code: "ops" });
+  departmentFindManyMock.mockResolvedValue([]);
+  departmentCountMock.mockResolvedValue(0);
+  expenseCountMock.mockResolvedValue(0);
+  categoryCountMock.mockResolvedValue(0);
+  budgetFindFirstMock.mockResolvedValue(null);
 });
 
-async function asAdmin() {
-  authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-  findUniqueMock.mockResolvedValueOnce({ role: "ADMIN" });
+function asAdmin() {
+  getOrganizerIdMock.mockResolvedValueOnce({
+    userId: "u1",
+    hackathonId: HACKATHON_ID,
+  });
 }
 
 describe("saveMetadata", () => {
   test("errors when not an admin", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await saveMetadata(
       {},
-      formData({ operation: "createCategory", name: "Food" }),
+      formData({ operation: "createCategory", name: "Food", departmentId }),
     );
 
+    expect(getOrganizerIdMock).toHaveBeenCalledWith(["ADMIN"]);
     expect(result.error).toBe("Only admins can edit metadata.");
   });
 
   test("errors on invalid operation data", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
-      formData({ operation: "createCategory", name: "x" }),
+      formData({ operation: "createCategory", name: "x", departmentId }),
     );
 
     expect(result.error).toBe("Complete all fields with valid values.");
   });
 
-  test("creates a category and revalidates paths", async () => {
-    await asAdmin();
+  test("creates a category in the hackathon, syncs the budget and revalidates paths", async () => {
+    asAdmin();
     categoryCreateMock.mockResolvedValueOnce({ id: "cat1", name: "Food" });
 
     const result = await saveMetadata(
       {},
-      formData({ operation: "createCategory", name: "Food" }),
+      formData({ operation: "createCategory", name: "Food", departmentId }),
     );
 
-    expect(categoryCreateMock).toHaveBeenCalledWith({ data: { name: "Food" } });
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      "/organizer/settings",
+    expect(departmentFindFirstMock).toHaveBeenCalledWith({
+      where: { id: departmentId, hackathonId: HACKATHON_ID },
+      select: { id: true },
+    });
+    expect(categoryCreateMock).toHaveBeenCalledWith({
+      data: { hackathonId: HACKATHON_ID, name: "Food", departmentId },
+    });
+    expect(syncNewCategoryMock).toHaveBeenCalledWith(
+      HACKATHON_ID,
+      "cat1",
+      "Food",
     );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/settings");
     expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/budget");
     expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/expenses");
     expect(revalidatePathMock).toHaveBeenCalledWith(
@@ -150,34 +198,37 @@ describe("saveMetadata", () => {
     expect(result).toEqual({ success: true });
   });
 
-  test("creates a subcategory with a department", async () => {
-    await asAdmin();
+  test("errors creating a category without a department", async () => {
+    asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "createCategory", name: "Food" }),
+    );
+
+    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(categoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("errors creating a category for a department outside the hackathon", async () => {
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "createCategory", name: "Food", departmentId }),
+    );
+
+    expect(result.error).toBe("That department no longer exists.");
+    expect(categoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  test("creates a subcategory and syncs the budget", async () => {
+    asAdmin();
     subcategoryCreateMock.mockResolvedValueOnce({
       id: "sub1",
       name: "Snacks",
     });
-
-    await saveMetadata(
-      {},
-      formData({
-        operation: "createSubcategory",
-        categoryId: "clabcdefghijklmnopqrstu1",
-        name: "Snacks",
-        departmentId: "clabcdefghijklmnopqrstu2",
-      }),
-    );
-
-    expect(subcategoryCreateMock).toHaveBeenCalledWith({
-      data: {
-        categoryId: "clabcdefghijklmnopqrstu1",
-        name: "Snacks",
-        departmentId: "clabcdefghijklmnopqrstu2",
-      },
-    });
-  });
-
-  test("errors creating a subcategory without a department", async () => {
-    await asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -188,13 +239,43 @@ describe("saveMetadata", () => {
       }),
     );
 
-    expect(result.error).toBe("Complete all fields with valid values.");
+    expect(categoryFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1", hackathonId: HACKATHON_ID },
+      select: { name: true },
+    });
+    expect(subcategoryCreateMock).toHaveBeenCalledWith({
+      data: { categoryId: "clabcdefghijklmnopqrstu1", name: "Snacks" },
+    });
+    expect(syncNewSubcategoryMock).toHaveBeenCalledWith(
+      HACKATHON_ID,
+      "sub1",
+      "clabcdefghijklmnopqrstu1",
+      "Snacks",
+    );
+    expect(result).toEqual({ success: true });
+  });
+
+  test("errors creating a subcategory under a category outside the hackathon", async () => {
+    asAdmin();
+    categoryFindFirstMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "createSubcategory",
+        categoryId: "clabcdefghijklmnopqrstu1",
+        name: "Snacks",
+      }),
+    );
+
+    expect(result.error).toBe("That category no longer exists.");
     expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 
   test("creates a department with a code generated from the name", async () => {
-    await asAdmin();
+    asAdmin();
     departmentFindManyMock.mockResolvedValueOnce([]);
+    departmentCountMock.mockResolvedValueOnce(2);
 
     await saveMetadata(
       {},
@@ -202,16 +283,21 @@ describe("saveMetadata", () => {
     );
 
     expect(departmentFindManyMock).toHaveBeenCalledWith({
-      where: { code: { startsWith: "ope" } },
+      where: { hackathonId: HACKATHON_ID, code: { startsWith: "ope" } },
       select: { code: true },
     });
     expect(departmentCreateMock).toHaveBeenCalledWith({
-      data: { code: "ope", name: "Operations" },
+      data: {
+        hackathonId: HACKATHON_ID,
+        code: "ope",
+        name: "Operations",
+        color: expect.stringMatching(/^#[0-9a-fA-F]{6}$/),
+      },
     });
   });
 
   test("appends a number to the generated code when it's already taken", async () => {
-    await asAdmin();
+    asAdmin();
     departmentFindManyMock.mockResolvedValueOnce([
       { code: "ope" },
       { code: "ope2" },
@@ -223,12 +309,47 @@ describe("saveMetadata", () => {
     );
 
     expect(departmentCreateMock).toHaveBeenCalledWith({
-      data: { code: "ope3", name: "Operations 2" },
+      data: expect.objectContaining({ code: "ope3", name: "Operations 2" }),
     });
   });
 
+  test("toggles the travel reimbursement feature", async () => {
+    asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "updateHackathonSettings",
+        travelReimbursementEnabled: "on",
+      }),
+    );
+
+    expect(hackathonUpdateMock).toHaveBeenCalledWith({
+      where: { id: HACKATHON_ID },
+      data: { travelReimbursementEnabled: true },
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  test("refuses travel edits while the travel feature is disabled", async () => {
+    asAdmin();
+    hackathonFindUniqueMock.mockResolvedValueOnce({
+      travelReimbursementEnabled: false,
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "createTravelRequirement", name: "Passport" }),
+    );
+
+    expect(result.error).toBe(
+      "Enable the travel reimbursement flow in Features before editing travel settings.",
+    );
+    expect(travelRequirementCreateMock).not.toHaveBeenCalled();
+  });
+
   test("updates travel settings with a valid start date", async () => {
-    await asAdmin();
+    asAdmin();
     travelSettingsUpsertMock.mockResolvedValueOnce({});
 
     const result = await saveMetadata(
@@ -243,17 +364,18 @@ describe("saveMetadata", () => {
 
     expect(travelSettingsUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "event" },
+        where: { hackathonId: HACKATHON_ID },
         update: expect.objectContaining({
           hackathonStartAt: expect.any(Date),
         }),
+        create: expect.objectContaining({ hackathonId: HACKATHON_ID }),
       }),
     );
     expect(result).toEqual({ success: true });
   });
 
   test("allows clearing the hackathon start date", async () => {
-    await asAdmin();
+    asAdmin();
     travelSettingsUpsertMock.mockResolvedValueOnce({});
 
     await saveMetadata(
@@ -274,7 +396,7 @@ describe("saveMetadata", () => {
   });
 
   test("errors on an invalid hackathon start date", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -291,7 +413,7 @@ describe("saveMetadata", () => {
   });
 
   test("creates a travel requirement", async () => {
-    await asAdmin();
+    asAdmin();
 
     await saveMetadata(
       {},
@@ -299,12 +421,12 @@ describe("saveMetadata", () => {
     );
 
     expect(travelRequirementCreateMock).toHaveBeenCalledWith({
-      data: { name: "Passport" },
+      data: { hackathonId: HACKATHON_ID, name: "Passport" },
     });
   });
 
   test("updates a travel requirement", async () => {
-    await asAdmin();
+    asAdmin();
 
     await saveMetadata(
       {},
@@ -316,14 +438,14 @@ describe("saveMetadata", () => {
       }),
     );
 
-    expect(travelRequirementUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
+    expect(travelRequirementUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1", hackathonId: HACKATHON_ID },
       data: { name: "Passport", active: true },
     });
   });
 
   test("creates a message template", async () => {
-    await asAdmin();
+    asAdmin();
 
     await saveMetadata(
       {},
@@ -336,6 +458,7 @@ describe("saveMetadata", () => {
 
     expect(travelMessageTemplateCreateMock).toHaveBeenCalledWith({
       data: {
+        hackathonId: HACKATHON_ID,
         name: "Missing ticket",
         message: "We could not verify your ticket, please resubmit.",
       },
@@ -343,7 +466,7 @@ describe("saveMetadata", () => {
   });
 
   test("errors creating a message template with a name that's too short", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -359,7 +482,7 @@ describe("saveMetadata", () => {
   });
 
   test("updates a message template", async () => {
-    await asAdmin();
+    asAdmin();
 
     await saveMetadata(
       {},
@@ -372,8 +495,8 @@ describe("saveMetadata", () => {
       }),
     );
 
-    expect(travelMessageTemplateUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
+    expect(travelMessageTemplateUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1", hackathonId: HACKATHON_ID },
       data: {
         name: "Missing ticket",
         message: "Updated message text.",
@@ -383,7 +506,7 @@ describe("saveMetadata", () => {
   });
 
   test("deactivates a message template when active is omitted", async () => {
-    await asAdmin();
+    asAdmin();
 
     await saveMetadata(
       {},
@@ -395,8 +518,8 @@ describe("saveMetadata", () => {
       }),
     );
 
-    expect(travelMessageTemplateUpdateMock).toHaveBeenCalledWith({
-      where: { id: "clabcdefghijklmnopqrstu1" },
+    expect(travelMessageTemplateUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "clabcdefghijklmnopqrstu1", hackathonId: HACKATHON_ID },
       data: {
         name: "Missing ticket",
         message: "Updated message text.",
@@ -406,7 +529,7 @@ describe("saveMetadata", () => {
   });
 
   test("returns a friendly error on a duplicate name/code", async () => {
-    await asAdmin();
+    asAdmin();
     const { Prisma } = await import("@prisma/client");
     categoryCreateMock.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("dup", {
@@ -417,25 +540,63 @@ describe("saveMetadata", () => {
 
     const result = await saveMetadata(
       {},
-      formData({ operation: "createCategory", name: "Food" }),
+      formData({ operation: "createCategory", name: "Food", departmentId }),
     );
 
     expect(result.error).toBe("That name or code is already in use.");
   });
 
   test("rethrows unexpected errors", async () => {
-    await asAdmin();
+    asAdmin();
     categoryCreateMock.mockRejectedValueOnce(new Error("db down"));
 
     await expect(
-      saveMetadata({}, formData({ operation: "createCategory", name: "Food" })),
+      saveMetadata(
+        {},
+        formData({ operation: "createCategory", name: "Food", departmentId }),
+      ),
     ).rejects.toThrow("db down");
+  });
+});
+
+describe("saveMetadata updateRoleSettings", () => {
+  test("merges role settings into the hackathon settings", async () => {
+    asAdmin();
+    hackathonFindUniqueMock.mockResolvedValueOnce({
+      settings: { theme: "violet" },
+    });
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "updateRoleSettings",
+        "role:ORGANIZER:label": "Volunteer",
+        "role:ORGANIZER:enabled": "on",
+      }),
+    );
+
+    expect(hackathonUpdateMock).toHaveBeenCalledWith({
+      where: { id: HACKATHON_ID },
+      data: {
+        settings: expect.objectContaining({
+          theme: "violet",
+          roles: expect.objectContaining({
+            ORGANIZER: expect.objectContaining({
+              label: "Volunteer",
+              enabled: true,
+            }),
+          }),
+        }),
+      },
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/users");
+    expect(result).toEqual({ success: true });
   });
 });
 
 describe("saveMetadata bulkUpdateCategories", () => {
   test("errors when not an admin", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await saveMetadata(
       {},
@@ -446,7 +607,7 @@ describe("saveMetadata bulkUpdateCategories", () => {
   });
 
   test("errors when there is nothing to save", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -457,13 +618,14 @@ describe("saveMetadata bulkUpdateCategories", () => {
   });
 
   test("errors on a blank category name", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "bulkUpdateCategories",
         "category:cat1:name": "x",
+        "category:cat1:departmentId": "dep1",
       }),
     );
 
@@ -473,53 +635,100 @@ describe("saveMetadata bulkUpdateCategories", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  test("errors when a subcategory has no department", async () => {
-    await asAdmin();
+  test("errors when a category has no department", async () => {
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "bulkUpdateCategories",
-        "subcategory:sub1:name": "Snacks",
+        "category:cat1:name": "Food",
       }),
     );
 
-    expect(result.error).toBe("Each subcategory must have a department.");
+    expect(result.error).toBe("Each category must have a department.");
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  test("errors on a blank subcategory name", async () => {
+    asAdmin();
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "subcategory:sub1:name": "x",
+      }),
+    );
+
+    expect(result.error).toBe(
+      "Each subcategory needs a name with at least 2 characters.",
+    );
   });
 
   test("updates every category and subcategory row in one transaction", async () => {
-    await asAdmin();
+    asAdmin();
 
-    const fd = formData({
-      operation: "bulkUpdateCategories",
-      "category:cat1:name": "Food",
-      "category:cat1:active": "on",
-      "category:cat2:name": "Travel",
-      "subcategory:sub1:name": "Snacks",
-      "subcategory:sub1:departmentId": "dep1",
-      "subcategory:sub1:active": "on",
-    });
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "category:cat1:name": "Food",
+        "category:cat1:departmentId": "dep1",
+        "category:cat1:active": "on",
+        "category:cat2:name": "Travel",
+        "category:cat2:departmentId": "dep2",
+        "subcategory:sub1:name": "Snacks",
+        "subcategory:sub1:active": "on",
+      }),
+    );
 
-    const result = await saveMetadata({}, fd);
-
-    expect(categoryUpdateMock).toHaveBeenCalledWith({
-      where: { id: "cat1" },
-      data: { name: "Food", active: true },
+    expect(categoryUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "cat1", hackathonId: HACKATHON_ID },
+      data: { name: "Food", active: true, departmentId: "dep1" },
     });
-    expect(categoryUpdateMock).toHaveBeenCalledWith({
-      where: { id: "cat2" },
-      data: { name: "Travel", active: false },
+    expect(categoryUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "cat2", hackathonId: HACKATHON_ID },
+      data: { name: "Travel", active: false, departmentId: "dep2" },
     });
-    expect(subcategoryUpdateMock).toHaveBeenCalledWith({
-      where: { id: "sub1" },
-      data: { name: "Snacks", active: true, departmentId: "dep1" },
+    expect(subcategoryUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "sub1", category: { hackathonId: HACKATHON_ID } },
+      data: { name: "Snacks", active: true },
     });
+    expect(budgetCategoryUpdateManyMock).not.toHaveBeenCalled();
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true });
   });
 
+  test("keeps the active budget's name snapshots in sync with renames", async () => {
+    asAdmin();
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
+
+    await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateCategories",
+        "category:cat1:name": "Food & drinks",
+        "category:cat1:departmentId": "dep1",
+        "subcategory:sub1:name": "Snacks",
+      }),
+    );
+
+    expect(budgetCategoryUpdateManyMock).toHaveBeenCalledWith({
+      where: { budgetId: "budget1", categoryId: "cat1" },
+      data: { name: "Food & drinks" },
+    });
+    expect(budgetSubcategoryUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        subcategoryId: "sub1",
+        budgetCategory: { budgetId: "budget1" },
+      },
+      data: { name: "Snacks" },
+    });
+  });
+
   test("returns a friendly error on a duplicate name", async () => {
-    await asAdmin();
+    asAdmin();
     const { Prisma } = await import("@prisma/client");
     transactionMock.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("dup", {
@@ -533,6 +742,7 @@ describe("saveMetadata bulkUpdateCategories", () => {
       formData({
         operation: "bulkUpdateCategories",
         "category:cat1:name": "Food",
+        "category:cat1:departmentId": "dep1",
       }),
     );
 
@@ -540,29 +750,27 @@ describe("saveMetadata bulkUpdateCategories", () => {
   });
 
   test("ignores an Unexpected expenses row even if one is submitted", async () => {
-    await asAdmin();
-    categoryFindUniqueMock.mockResolvedValueOnce({
-      id: "unexpected-id",
-      name: "Unexpected expenses",
-    });
+    asAdmin();
+    categoryFindFirstMock.mockResolvedValueOnce({ id: "unexpected-id" });
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "bulkUpdateCategories",
         "category:unexpected-id:name": "Renamed",
+        "category:unexpected-id:departmentId": "dep1",
         "category:unexpected-id:active": "off",
       }),
     );
 
-    expect(categoryUpdateMock).not.toHaveBeenCalled();
+    expect(categoryUpdateManyMock).not.toHaveBeenCalled();
     expect(result).toEqual({ error: "Nothing to save." });
   });
 });
 
 describe("saveMetadata bulkUpdateDepartments", () => {
   test("errors when there is nothing to save", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -573,14 +781,13 @@ describe("saveMetadata bulkUpdateDepartments", () => {
   });
 
   test("errors on a blank department name", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "bulkUpdateDepartments",
         "department:dep1:name": "x",
-        "department:dep1:code": "ops",
       }),
     );
 
@@ -589,31 +796,46 @@ describe("saveMetadata bulkUpdateDepartments", () => {
     );
   });
 
-  test("updates non-protected departments' name and active state", async () => {
-    await asAdmin();
+  test("errors on an invalid color", async () => {
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({
         operation: "bulkUpdateDepartments",
         "department:dep1:name": "Operations",
+        "department:dep1:color": "purple",
+      }),
+    );
+
+    expect(result.error).toBe("Department colors must be valid hex colors.");
+    expect(departmentUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  test("updates non-protected departments' name, color and active state", async () => {
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ id: "general-dep-id" });
+
+    const result = await saveMetadata(
+      {},
+      formData({
+        operation: "bulkUpdateDepartments",
+        "department:dep1:name": "Operations",
+        "department:dep1:color": "#7c3aed",
         "department:dep1:active": "on",
       }),
     );
 
-    expect(departmentUpdateMock).toHaveBeenCalledWith({
-      where: { id: "dep1" },
-      data: { name: "Operations", active: true },
+    expect(departmentUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "dep1", hackathonId: HACKATHON_ID },
+      data: { name: "Operations", color: "#7c3aed", active: true },
     });
     expect(result).toEqual({ success: true });
   });
 
-  test("does not require a code or touch active for the protected general department", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce({
-      id: "general-dep-id",
-      code: "general",
-    });
+  test("does not touch active for the protected general department", async () => {
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ id: "general-dep-id" });
 
     const result = await saveMetadata(
       {},
@@ -623,8 +845,8 @@ describe("saveMetadata bulkUpdateDepartments", () => {
       }),
     );
 
-    expect(departmentUpdateMock).toHaveBeenCalledWith({
-      where: { id: "general-dep-id" },
+    expect(departmentUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "general-dep-id", hackathonId: HACKATHON_ID },
       data: { name: "General" },
     });
     expect(result).toEqual({ success: true });
@@ -635,22 +857,26 @@ describe("saveMetadata deleteDepartment", () => {
   const id = "clabcdefghijklmnopqrstu1";
 
   test("deletes an unused department", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
-    subcategoryCountMock.mockResolvedValueOnce(0);
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ code: "ops" });
+    categoryCountMock.mockResolvedValueOnce(0);
 
     const result = await saveMetadata(
       {},
       formData({ operation: "deleteDepartment", id }),
     );
 
+    expect(departmentFindFirstMock).toHaveBeenCalledWith({
+      where: { id, hackathonId: HACKATHON_ID },
+      select: { code: true },
+    });
     expect(departmentDeleteMock).toHaveBeenCalledWith({ where: { id } });
     expect(result).toEqual({ success: true });
   });
 
   test("refuses to delete the protected General department", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce({ code: "general" });
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ code: "general" });
 
     const result = await saveMetadata(
       {},
@@ -661,23 +887,23 @@ describe("saveMetadata deleteDepartment", () => {
     expect(departmentDeleteMock).not.toHaveBeenCalled();
   });
 
-  test("refuses when subcategories still use the department", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
-    subcategoryCountMock.mockResolvedValueOnce(2);
+  test("refuses when categories still use the department", async () => {
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ code: "ops" });
+    categoryCountMock.mockResolvedValueOnce(2);
 
     const result = await saveMetadata(
       {},
       formData({ operation: "deleteDepartment", id }),
     );
 
-    expect(result.error).toContain("still has 2 subcategories");
+    expect(result.error).toContain("still has 2 categories");
     expect(departmentDeleteMock).not.toHaveBeenCalled();
   });
 
   test("reports a department that no longer exists", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce(null);
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce(null);
 
     const result = await saveMetadata(
       {},
@@ -688,9 +914,9 @@ describe("saveMetadata deleteDepartment", () => {
   });
 
   test("turns a foreign-key race into a friendly error", async () => {
-    await asAdmin();
-    departmentFindUniqueMock.mockResolvedValueOnce({ code: "ops" });
-    subcategoryCountMock.mockResolvedValueOnce(0);
+    asAdmin();
+    departmentFindFirstMock.mockResolvedValueOnce({ code: "ops" });
+    categoryCountMock.mockResolvedValueOnce(0);
     const { Prisma } = await import("@prisma/client");
     departmentDeleteMock.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("fk", {
@@ -712,34 +938,66 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   const id = "clabcdefghijklmnopqrstu1";
 
   test("deletes a category", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({ operation: "deleteCategory", id }),
     );
 
+    expect(categoryFindFirstMock).toHaveBeenCalledWith({
+      where: { id, hackathonId: HACKATHON_ID },
+      select: { name: true },
+    });
     expect(categoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      "/organizer/settings",
-    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/settings");
     expect(result).toEqual({ success: true });
   });
 
   test("deletes a subcategory", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
       formData({ operation: "deleteSubcategory", id }),
     );
 
+    expect(subcategoryFindFirstMock).toHaveBeenCalledWith({
+      where: { id, category: { hackathonId: HACKATHON_ID } },
+      select: { id: true },
+    });
     expect(subcategoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
     expect(result).toEqual({ success: true });
   });
 
+  test("reports a category outside the hackathon as missing", async () => {
+    asAdmin();
+    categoryFindFirstMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteCategory", id }),
+    );
+
+    expect(result.error).toBe("That category no longer exists.");
+    expect(categoryDeleteMock).not.toHaveBeenCalled();
+  });
+
+  test("reports a subcategory outside the hackathon as missing", async () => {
+    asAdmin();
+    subcategoryFindFirstMock.mockResolvedValueOnce(null);
+
+    const result = await saveMetadata(
+      {},
+      formData({ operation: "deleteSubcategory", id }),
+    );
+
+    expect(result.error).toBe("That subcategory no longer exists.");
+    expect(subcategoryDeleteMock).not.toHaveBeenCalled();
+  });
+
   test("refuses to delete a category that has expenses", async () => {
-    await asAdmin();
+    asAdmin();
     expenseCountMock.mockResolvedValueOnce(2);
 
     const result = await saveMetadata(
@@ -752,7 +1010,7 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   });
 
   test("refuses to delete a subcategory that has expenses", async () => {
-    await asAdmin();
+    asAdmin();
     expenseCountMock.mockResolvedValueOnce(1);
 
     const result = await saveMetadata(
@@ -765,7 +1023,7 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   });
 
   test("rejects an invalid id", async () => {
-    await asAdmin();
+    asAdmin();
 
     const result = await saveMetadata(
       {},
@@ -777,7 +1035,7 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   });
 
   test("only admins can delete", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await saveMetadata(
       {},
@@ -789,7 +1047,7 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   });
 
   test("turns a missing record into a friendly error", async () => {
-    await asAdmin();
+    asAdmin();
     const { Prisma } = await import("@prisma/client");
     subcategoryDeleteMock.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("gone", {
@@ -807,9 +1065,8 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
   });
 
   test("refuses to delete the Unexpected expenses category", async () => {
-    await asAdmin();
-    categoryFindUniqueMock.mockResolvedValueOnce({
-      id,
+    asAdmin();
+    categoryFindFirstMock.mockResolvedValueOnce({
       name: "Unexpected expenses",
     });
 
@@ -827,9 +1084,8 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
 
 describe("saveMetadata Unexpected expenses protections", () => {
   test("refuses to add a subcategory under Unexpected expenses", async () => {
-    await asAdmin();
-    categoryFindUniqueMock.mockResolvedValueOnce({
-      id: "unexpected-id",
+    asAdmin();
+    categoryFindFirstMock.mockResolvedValueOnce({
       name: "Unexpected expenses",
     });
 
@@ -839,13 +1095,10 @@ describe("saveMetadata Unexpected expenses protections", () => {
         operation: "createSubcategory",
         categoryId: "clabcdefghijklmnopqrstu1",
         name: "Snacks",
-        departmentId: "clabcdefghijklmnopqrstu2",
       }),
     );
 
-    expect(result.error).toBe(
-      "Unexpected expenses can't have subcategories.",
-    );
+    expect(result.error).toBe("Unexpected expenses can't have subcategories.");
     expect(subcategoryCreateMock).not.toHaveBeenCalled();
   });
 });

@@ -3,10 +3,13 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
-const getHackerIdMock = vi.fn();
+const getCurrentUserMock = vi.fn();
 vi.mock("@/lib/travel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/travel")>();
-  return { ...actual, getHackerId: (...args: unknown[]) => getHackerIdMock(...args) };
+  return {
+    ...actual,
+    getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args),
+  };
 });
 
 const findUniqueReimbursementMock = vi.fn();
@@ -109,13 +112,21 @@ function pdfTicket(name = "ticket.pdf") {
   return file;
 }
 
+function asHacker() {
+  getCurrentUserMock.mockResolvedValueOnce({
+    id: "hacker1",
+    role: "HACKER",
+    hackathonId: "hackathon",
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("saveTravelRequest", () => {
   test("errors when not a hacker", async () => {
-    getHackerIdMock.mockResolvedValueOnce(null);
+    getCurrentUserMock.mockResolvedValueOnce(null);
 
     const result = await saveTravelRequest({}, formData(baseFields(), pdfTicket()));
 
@@ -123,7 +134,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors on invalid form fields", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -134,7 +145,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("requires flight numbers when transport mode is AIRPLANE", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -145,7 +156,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors on invalid dates", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -156,7 +167,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors on an invalid currency", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -167,7 +178,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors when outbound departure is not before arrival", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -185,7 +196,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors when return departure is before outbound arrival", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -204,7 +215,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors when luggage paid but no positive price given", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveTravelRequest(
       {},
@@ -217,7 +228,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("errors when an existing reimbursement is not editable", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "PENDING_REVIEW",
@@ -232,7 +243,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("requires a ticket for a new submission", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce(null);
 
     const result = await saveTravelRequest({}, formData(baseFields()));
@@ -241,7 +252,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("rejects a ticket with a mismatched signature", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce(null);
 
     const badTicket = new File(["not a pdf"], "ticket.pdf", {
@@ -261,7 +272,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("creates a new reimbursement on success", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce(null);
     txCreateMock.mockResolvedValueOnce({ id: "new-r1" });
 
@@ -298,7 +309,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("updates an existing editable reimbursement without a new ticket", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "REJECTED",
@@ -328,7 +339,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("removes the old ticket when replaced", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "REJECTED",
@@ -347,7 +358,7 @@ describe("saveTravelRequest", () => {
   });
 
   test("cleans up the new ticket if the transaction fails", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce(null);
     txCreateMock.mockRejectedValueOnce(new Error("db down"));
 
@@ -366,7 +377,7 @@ describe("saveDemoProof", () => {
   };
 
   test("errors when not a hacker", async () => {
-    getHackerIdMock.mockResolvedValueOnce(null);
+    getCurrentUserMock.mockResolvedValueOnce(null);
 
     const result = await saveDemoProof({}, formData(demoFields));
 
@@ -374,7 +385,7 @@ describe("saveDemoProof", () => {
   });
 
   test("errors on an invalid demo url", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
 
     const result = await saveDemoProof(
       {},
@@ -385,7 +396,7 @@ describe("saveDemoProof", () => {
   });
 
   test("errors when there is no approved reimbursement", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce(null);
     findUniqueSettingsMock.mockResolvedValueOnce(null);
 
@@ -397,7 +408,7 @@ describe("saveDemoProof", () => {
   });
 
   test("errors when demo proof is not unlocked yet", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "APPROVED",
@@ -412,7 +423,7 @@ describe("saveDemoProof", () => {
   });
 
   test("submits demo proof on success", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "APPROVED",
@@ -445,7 +456,7 @@ describe("saveDemoProof", () => {
   });
 
   test("uses updated note when resubmitting from FINAL_REVIEW", async () => {
-    getHackerIdMock.mockResolvedValueOnce("hacker1");
+    asHacker();
     findUniqueReimbursementMock.mockResolvedValueOnce({
       id: "r1",
       status: "FINAL_REVIEW",

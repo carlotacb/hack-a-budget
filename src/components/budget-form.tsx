@@ -143,6 +143,7 @@ export function BudgetPlanForm({
                     </p>
                   ) : (
                     <input
+                      aria-label={`${category.name} budget`}
                       name={`budgetCategory:${category.id}`}
                       type="number"
                       min="0"
