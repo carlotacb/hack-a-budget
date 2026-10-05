@@ -29,8 +29,9 @@ describe("organizerRoles", () => {
 describe("roleLabels", () => {
   test("has a human-readable label for every role", () => {
     expect(roleLabels).toEqual({
-      HACKER: "Hacker",
+      HACKER: "Participant",
       ORGANIZER: "Organizer",
+      ORGANIZER_LEAD: "Organizer Lead",
       DIRECTOR: "Director",
       ADMIN: "Admin",
     });

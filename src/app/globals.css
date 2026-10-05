@@ -224,6 +224,10 @@ button:disabled {
   backdrop-filter: blur(24px);
 }
 
+.auth-card--wide {
+  width: min(100%, 56rem);
+}
+
 .auth-glow {
   position: absolute;
   border-radius: 9999px;
@@ -296,6 +300,16 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
 }
 
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.field input[readonly],
+.field textarea[readonly] {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .glass-panel {
   display: flex;
   align-items: flex-start;
@@ -364,6 +378,11 @@ button:disabled {
 .role-badge-organizer {
   background: #f3e8ff;
   color: #7e22ce;
+}
+
+.role-badge-organizer_lead {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .role-badge-director {

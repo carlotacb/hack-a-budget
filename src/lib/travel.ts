@@ -4,9 +4,8 @@ import type {
   TravelReimbursementStatus,
   TransportMode,
 } from "@prisma/client";
-import { auth } from "@/auth";
+import { getCurrentMembership, toHackathonOptions } from "@/lib/current-hackathon";
 import { dashboardForRole } from "@/lib/organizer";
-import { prisma } from "@/lib/prisma";
 
 export const travelReviewRoles = [
   "ADMIN",
@@ -45,17 +44,24 @@ export const editableTravelStatuses: readonly TravelReimbursementStatus[] = [
   "REJECTED",
 ];
 
+/** Resolves the current user's identity and role within their active
+ * hackathon. Returns null if signed out or not a member of any hackathon. */
 export async function getCurrentUser() {
-  const session = await auth();
+  const current = await getCurrentMembership();
 
-  if (!session?.user) {
+  if (!current || !current.membership) {
     return null;
   }
 
-  return prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, name: true, email: true, role: true },
-  });
+  const { membership } = current;
+  return {
+    id: membership.user.id,
+    name: membership.user.name,
+    email: membership.user.email,
+    role: membership.role,
+    hackathonId: membership.hackathonId,
+    hackathons: toHackathonOptions(current.memberships),
+  };
 }
 
 export async function requireHacker() {

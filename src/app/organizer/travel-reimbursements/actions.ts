@@ -42,11 +42,12 @@ export async function reviewTravelRequest(
   _state: TravelReviewState,
   formData: FormData,
 ): Promise<TravelReviewState> {
-  const reviewerId = await getOrganizerId(["ADMIN", "DIRECTOR"]);
+  const reviewer = await getOrganizerId(["ADMIN", "DIRECTOR"]);
 
-  if (!reviewerId) {
+  if (!reviewer) {
     return { error: "Only admins and directors can review travel requests." };
   }
+  const { userId: reviewerId, hackathonId } = reviewer;
 
   const id = z.string().cuid().safeParse(reimbursementId);
   const parsed = reviewSchema.safeParse(Object.fromEntries(formData));
@@ -59,8 +60,8 @@ export async function reviewTravelRequest(
     };
   }
 
-  const reimbursement = await prisma.travelReimbursement.findUnique({
-    where: { id: reimbursementId },
+  const reimbursement = await prisma.travelReimbursement.findFirst({
+    where: { id: reimbursementId, hackathonId },
   });
 
   if (!reimbursement) {
@@ -125,22 +126,23 @@ export async function saveRequirementChecks(
   _state: TravelReviewState,
   formData: FormData,
 ): Promise<TravelReviewState> {
-  const reviewerId = await getOrganizerId(["ADMIN", "DIRECTOR"]);
+  const reviewer = await getOrganizerId(["ADMIN", "DIRECTOR"]);
 
-  if (!reviewerId) {
+  if (!reviewer) {
     return { error: "Only admins and directors can update final checks." };
   }
+  const { userId: reviewerId, hackathonId } = reviewer;
   if (!z.string().cuid().safeParse(reimbursementId).success) {
     return { error: "Invalid reimbursement." };
   }
 
   const [reimbursement, requirements] = await Promise.all([
-    prisma.travelReimbursement.findUnique({
-      where: { id: reimbursementId },
+    prisma.travelReimbursement.findFirst({
+      where: { id: reimbursementId, hackathonId },
       select: { status: true },
     }),
     prisma.travelFinalRequirement.findMany({
-      where: { active: true },
+      where: { hackathonId, active: true },
       select: { id: true },
     }),
   ]);
@@ -191,22 +193,23 @@ export async function finalApproveTravel(
 ): Promise<TravelReviewState> {
   void _state;
   void _formData;
-  const reviewerId = await getOrganizerId(["ADMIN", "DIRECTOR"]);
+  const reviewer = await getOrganizerId(["ADMIN", "DIRECTOR"]);
 
-  if (!reviewerId) {
+  if (!reviewer) {
     return { error: "Only admins and directors can final-approve travel." };
   }
+  const { userId: reviewerId, hackathonId } = reviewer;
   if (!z.string().cuid().safeParse(reimbursementId).success) {
     return { error: "Invalid reimbursement." };
   }
 
   const [reimbursement, requirements] = await Promise.all([
-    prisma.travelReimbursement.findUnique({
-      where: { id: reimbursementId },
+    prisma.travelReimbursement.findFirst({
+      where: { id: reimbursementId, hackathonId },
       select: { id: true, status: true, demoUrl: true },
     }),
     prisma.travelFinalRequirement.findMany({
-      where: { active: true },
+      where: { hackathonId, active: true },
       select: {
         id: true,
         checks: {

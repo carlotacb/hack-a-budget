@@ -1,20 +1,11 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { AuthForm } from "@/components/auth-form";
+import { HackathonRegisterForm } from "@/components/hackathon-register-form";
 
 export default async function RegisterPage() {
   const session = await auth();
 
-  if (session?.user) {
-    redirect("/dashboard");
-  }
-
-  return (
-    <AuthForm
-      mode="register"
-      googleEnabled={Boolean(
-        process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-      )}
-    />
-  );
+  // Anyone can register a new, fully isolated hackathon at any time. If
+  // already signed in, this adds the hackathon to that existing account
+  // (as its admin) instead of asking for a new profile/password.
+  return <HackathonRegisterForm isAuthenticated={Boolean(session?.user)} />;
 }

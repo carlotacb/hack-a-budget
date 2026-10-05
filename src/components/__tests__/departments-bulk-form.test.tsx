@@ -2,7 +2,7 @@ import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
-vi.mock("@/app/organizer/settings/metadata/actions", () => ({
+vi.mock("@/app/organizer/settings/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 
@@ -17,9 +17,9 @@ const { DepartmentsBulkForm } = await import(
 
 const updatedAt = "2026-01-01T00:00:00.000Z";
 const departments = [
-  { id: "dep1", code: "hx", name: "HX", active: true, updatedAt },
-  { id: "general-id", code: "general", name: "General", active: true, updatedAt },
-  { id: "dep2", code: "mkt", name: "Marketing", active: false, updatedAt },
+  { id: "dep1", code: "hx", name: "HX", active: true, color: "#8b5cf6", updatedAt },
+  { id: "general-id", code: "general", name: "General", active: true, color: "#64748b", updatedAt },
+  { id: "dep2", code: "mkt", name: "Marketing", active: false, color: "#0ea5e9", updatedAt },
 ];
 
 beforeEach(() => {

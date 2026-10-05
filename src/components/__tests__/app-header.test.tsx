@@ -5,6 +5,9 @@ const signOutMock = vi.fn();
 vi.mock("next-auth/react", () => ({
   signOut: (...args: unknown[]) => signOutMock(...args),
 }));
+vi.mock("@/app/actions/hackathon", () => ({
+  switchActiveHackathon: vi.fn(),
+}));
 
 const { AppHeader } = await import("@/components/app-header");
 
@@ -24,10 +27,10 @@ describe("AppHeader", () => {
     expect(screen.getByText("Hacker")).toBeTruthy();
   });
 
-  test("falls back to 'Participant' when no name is provided", () => {
+  test("renders the role tag even when no name is provided", () => {
     render(<AppHeader name={null} role="Organizer" />);
 
-    expect(screen.getByText("Participant")).toBeTruthy();
+    expect(screen.getByText("Organizer")).toBeTruthy();
   });
 
   test("calls signOut with the redirect target when the button is clicked", async () => {

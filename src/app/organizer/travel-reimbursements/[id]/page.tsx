@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FinalRequirementForms, TravelReviewForm } from "@/components/travel-review-forms";
 import { TicketViewerButton } from "@/components/ticket-viewer-button";
 import { requireOrganizer } from "@/lib/organizer";
+import { isTravelReimbursementEnabled } from "@/lib/hackathon";
 import { prisma } from "@/lib/prisma";
 import {
   formatEventDateTime,
@@ -17,10 +18,14 @@ export default async function TravelReimbursementDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const organizer = await requireOrganizer(["ADMIN", "DIRECTOR"]);
+  const { hackathonId } = organizer;
+  if (!(await isTravelReimbursementEnabled(hackathonId))) {
+    redirect("/organizer");
+  }
   const { id } = await params;
-  const reimbursement = await prisma.travelReimbursement.findUnique({
-    where: { id },
+  const reimbursement = await prisma.travelReimbursement.findFirst({
+    where: { id, hackathonId },
     include: {
       hacker: { select: { name: true, email: true } },
       initialReviewer: { select: { name: true } },
@@ -39,7 +44,7 @@ export default async function TravelReimbursementDetailPage({
   const messageTemplates =
     reimbursement.status === "PENDING_REVIEW"
       ? await prisma.travelMessageTemplate.findMany({
-          where: { active: true },
+          where: { hackathonId, active: true },
           orderBy: { name: "asc" },
         })
       : [];
@@ -47,7 +52,7 @@ export default async function TravelReimbursementDetailPage({
   const requirements =
     reimbursement.status === "FINAL_REVIEW"
       ? await prisma.travelFinalRequirement.findMany({
-          where: { active: true },
+          where: { hackathonId, active: true },
           include: {
             checks: {
               where: { reimbursementId: reimbursement.id },

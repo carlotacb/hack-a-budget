@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
-vi.mock("@/app/organizer/settings/metadata/actions", () => ({
+vi.mock("@/app/organizer/settings/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 
@@ -27,13 +27,13 @@ const categories = [
     id: "cat1",
     name: "Venue",
     active: true,
+    departmentId: "dep1",
     updatedAt: "2026-01-01T00:00:00.000Z",
     subcategories: [
       {
         id: "sub1",
         name: "Space rental",
         active: true,
-        departmentId: "dep1",
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ],
@@ -42,6 +42,7 @@ const categories = [
     id: "cat2",
     name: "Catering",
     active: false,
+    departmentId: "dep2",
     updatedAt: "2026-01-01T00:00:00.000Z",
     subcategories: [],
   },
@@ -94,8 +95,8 @@ describe("CategoriesBulkForm", () => {
     expect(formData.get("category:cat2:name")).toBe("Catering");
     expect(formData.get("category:cat2:active")).toBeNull();
     expect(formData.get("subcategory:sub1:name")).toBe("Space rental");
-    expect(formData.get("subcategory:sub1:departmentId")).toBe("dep1");
     expect(formData.get("subcategory:sub1:active")).toBe("on");
+    expect(formData.get("category:cat1:departmentId")).toBe("dep1");
   });
 
   test("the nested create-subcategory form submits independently of the bulk save form", async () => {
@@ -109,9 +110,6 @@ describe("CategoriesBulkForm", () => {
     fireEvent.change(createForm.getByLabelText("New name"), {
       target: { value: "Equipment" },
     });
-    fireEvent.change(createForm.getByLabelText("Department"), {
-      target: { value: "dep2" },
-    });
     fireEvent.click(addButton);
 
     await waitFor(() => {
@@ -121,7 +119,7 @@ describe("CategoriesBulkForm", () => {
     expect(formData.get("operation")).toBe("createSubcategory");
     expect(formData.get("categoryId")).toBe("cat1");
     expect(formData.get("name")).toBe("Equipment");
-    expect(formData.get("departmentId")).toBe("dep2");
+    expect(createForm.queryByLabelText("Department")).not.toBeInTheDocument();
   });
 
   test("shows a message returned from the bulk save action", async () => {
@@ -288,6 +286,7 @@ describe("CategoriesBulkForm delete buttons", () => {
         id: "cat3",
         name: "Unexpected expenses",
         active: true,
+        departmentId: "dep1",
         updatedAt: "2026-01-01T00:00:00.000Z",
         subcategories: [],
       },

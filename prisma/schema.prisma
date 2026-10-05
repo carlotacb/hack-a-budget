@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   HACKER
   ORGANIZER
+  ORGANIZER_LEAD
   DIRECTOR
   ADMIN
 }
@@ -20,6 +21,25 @@ enum Gender {
   MAN
   NON_BINARY
   PREFER_NOT_TO_SAY
+}
+
+enum Diet {
+  OMNIVORE
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  HALAL
+  KOSHER
+  OTHER
+}
+
+enum TShirtSize {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
 }
 
 enum TransportMode {
@@ -45,20 +65,45 @@ model User {
   emailVerified           DateTime?
   image                   String?
   passwordHash            String?
-  role                    Role                     @default(HACKER)
   gender                  Gender?
-  city                    String?
-  major                   String?
+  diet                    Diet?
+  tshirtSize              TShirtSize?
   accounts                Account[]
   sessions                Session[]
+  memberships             HackathonMembership[]
   expenses                Expense[]
-  travelReimbursement     TravelReimbursement?     @relation("TravelHacker")
+  travelReimbursements    TravelReimbursement[]    @relation("TravelHacker")
   initialTravelReviews    TravelReimbursement[]    @relation("InitialTravelReviewer")
   finalTravelReviews      TravelReimbursement[]    @relation("FinalTravelReviewer")
   travelStatusEvents      TravelStatusEvent[]      @relation("TravelStatusActor")
   travelRequirementChecks TravelRequirementCheck[] @relation("TravelRequirementChecker")
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+}
+
+/**
+ * A user's role within a single hackathon. A user may belong to several
+ * hackathons (e.g. as HACKER in one and ADMIN in another), so the role
+ * lives here rather than on User.
+ */
+model HackathonMembership {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hackathonId  String
+  hackathon    Hackathon   @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  role         Role        @default(HACKER)
+  // Only meaningful for roles configured to relate to a department (e.g.
+  // Organizer / Organizer Lead when the hackathon's role settings turn
+  // that on). Cleared automatically if the role changes or the
+  // department is deleted.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+
+  @@unique([userId, hackathonId])
+  @@index([hackathonId])
+  @@index([departmentId])
 }
 
 model Account {
@@ -105,62 +150,83 @@ model Expense {
   ticketPath    String?
   organizerId   String
   organizer     User         @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  hackathonId   String
+  hackathon     Hackathon    @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   categoryId    String?
   category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   subcategoryId String?
   subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
   departmentId  String?
   department    Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  // Which budget plan this expense is attributed to — defaults to whichever
+  // budget was active at creation time, but can be changed (e.g. to log an
+  // expense against a past budget) so dashboards can report per-budget.
+  budgetId      String?
+  budget        Budget?      @relation(fields: [budgetId], references: [id], onDelete: SetNull)
   createdAt     DateTime     @default(now())
 
   @@index([organizerId, incurredAt])
+  @@index([hackathonId])
   @@index([categoryId])
   @@index([subcategoryId])
   @@index([departmentId])
+  @@index([budgetId])
 }
 
 model Category {
-  id              String           @id @default(cuid())
-  name            String           @unique
-  budgetCents     Int              @default(0)
-  active          Boolean          @default(true)
-  subcategories   Subcategory[]
-  expenses        Expense[]
+  id               String           @id @default(cuid())
+  name             String
+  hackathonId      String
+  hackathon        Hackathon        @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  // The department a category's expenses are attributed to. All of a
+  // category's subcategories share this department — set once here rather
+  // than per subcategory, so department-scoped visibility only needs to
+  // check the category.
+  departmentId     String
+  department       Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  budgetCents      Int              @default(0)
+  active           Boolean          @default(true)
+  subcategories    Subcategory[]
+  expenses         Expense[]
   budgetCategories BudgetCategory[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-}
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-model Subcategory {
-  id              String              @id @default(cuid())
-  name            String
-  budgetCents     Int                 @default(0)
-  active          Boolean             @default(true)
-  categoryId      String
-  category        Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  departmentId    String
-  department      Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  expenses        Expense[]
-  budgetSubcategories BudgetSubcategory[]
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  @@unique([categoryId, name])
+  @@unique([hackathonId, name])
   @@index([departmentId])
 }
 
+model Subcategory {
+  id                  String              @id @default(cuid())
+  name                String
+  budgetCents         Int                 @default(0)
+  active              Boolean             @default(true)
+  categoryId          String
+  category            Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  expenses            Expense[]
+  budgetSubcategories BudgetSubcategory[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([categoryId, name])
+}
+
 model Budget {
-  id         String           @id @default(cuid())
-  name       String
-  isActive   Boolean          @default(false)
-  basedOnId  String?
-  basedOn    Budget?          @relation("BudgetRevision", fields: [basedOnId], references: [id], onDelete: SetNull)
-  revisions  Budget[]         @relation("BudgetRevision")
-  categories BudgetCategory[]
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  id          String           @id @default(cuid())
+  name        String
+  isActive    Boolean          @default(false)
+  hackathonId String
+  hackathon   Hackathon        @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  basedOnId   String?
+  basedOn     Budget?          @relation("BudgetRevision", fields: [basedOnId], references: [id], onDelete: SetNull)
+  revisions   Budget[]         @relation("BudgetRevision")
+  categories  BudgetCategory[]
+  expenses    Expense[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([basedOnId])
+  @@index([hackathonId])
 }
 
 model BudgetCategory {
@@ -196,20 +262,31 @@ model BudgetSubcategory {
 }
 
 model Department {
-  id            String        @id @default(cuid())
-  code          String        @unique
+  id            String                 @id @default(cuid())
+  code          String
   name          String
-  active        Boolean       @default(true)
+  active        Boolean                @default(true)
+  // Hex color (e.g. "#8b5cf6") shown on department tags across the app
+  // (budget categories, expense lists, etc.) so departments are visually
+  // distinguishable at a glance. Configurable per department in Settings.
+  color         String                 @default("#64748b")
+  hackathonId   String
+  hackathon     Hackathon              @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   expenses      Expense[]
-  subcategories Subcategory[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  categories    Category[]
+  memberships   HackathonMembership[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@unique([hackathonId, code])
 }
 
 model TravelReimbursement {
   id                     String                    @id @default(cuid())
-  hackerId               String                    @unique
+  hackerId               String
   hacker                 User                      @relation("TravelHacker", fields: [hackerId], references: [id], onDelete: Cascade)
+  hackathonId            String
+  hackathon              Hackathon                 @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   status                 TravelReimbursementStatus @default(DRAFT)
   originCity             String
   originCountry          String
@@ -249,6 +326,7 @@ model TravelReimbursement {
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
 
+  @@unique([hackathonId, hackerId])
   @@index([status, submittedAt])
   @@index([initialReviewerId])
   @@index([finalReviewerId])
@@ -269,8 +347,46 @@ model TravelStatusEvent {
   @@index([actorId])
 }
 
+model Hackathon {
+  id                         String                   @id @default(cuid())
+  name                       String
+  travelReimbursementEnabled Boolean                  @default(true)
+  // Escape hatch for future per-event personalization fields (e.g. theme,
+  // custom links) that don't warrant a migration yet. Promote a field to a
+  // real column once its shape stabilizes.
+  settings                   Json                     @default("{}")
+  memberships                HackathonMembership[]
+  departments                Department[]
+  categories                 Category[]
+  budgets                    Budget[]
+  expenses                   Expense[]
+  travelReimbursements       TravelReimbursement[]
+  travelEventSettings        TravelEventSettings?
+  travelMessageTemplates     TravelMessageTemplate[]
+  travelFinalRequirements    TravelFinalRequirement[]
+  hackerInvites              HackerInvite[]
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+}
+
+model HackerInvite {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  hackathonId String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  createdById String
+  usedAt      DateTime?
+  usedById    String?
+  createdAt   DateTime  @default(now())
+
+  @@index([createdById])
+  @@index([hackathonId])
+}
+
 model TravelEventSettings {
-  id                        String    @id @default("event")
+  id                        String    @id @default(cuid())
+  hackathonId               String    @unique
+  hackathon                 Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   hackathonStartAt          DateTime?
   reimbursementInstructions String    @default("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
   finalReviewInstructions   String    @default("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
@@ -278,23 +394,30 @@ model TravelEventSettings {
 }
 
 model TravelMessageTemplate {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  message   String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  name        String
+  hackathonId String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  message     String
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  @@unique([hackathonId, name])
   @@index([active])
 }
 
 model TravelFinalRequirement {
-  id        String                   @id @default(cuid())
-  name      String                   @unique
-  active    Boolean                  @default(true)
-  checks    TravelRequirementCheck[]
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
+  id          String                   @id @default(cuid())
+  name        String
+  hackathonId String
+  hackathon   Hackathon                @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  active      Boolean                  @default(true)
+  checks      TravelRequirementCheck[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@unique([hackathonId, name])
 }
 
 model TravelRequirementCheck {

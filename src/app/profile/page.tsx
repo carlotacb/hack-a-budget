@@ -1,28 +1,27 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UserRound } from "lucide-react";
-import { auth } from "@/auth";
 import { AppHeader } from "@/components/app-header";
 import { ProfileForm } from "@/components/profile-form";
-import { roleLabels } from "@/lib/organizer";
+import { getCurrentMembership, toHackathonOptions } from "@/lib/current-hackathon";
 import { prisma } from "@/lib/prisma";
+import { getRoleSettings } from "@/lib/role-settings";
 
 export default async function ProfilePage() {
-  const session = await auth();
+  const current = await getCurrentMembership();
 
-  if (!session?.user) {
+  if (!current) {
     redirect("/login");
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: current.userId },
     select: {
       name: true,
       email: true,
-      role: true,
       gender: true,
-      city: true,
-      major: true,
+      diet: true,
+      tshirtSize: true,
     },
   });
 
@@ -30,9 +29,19 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
+  const role = current.membership?.role;
+  const roleSettings = current.membership
+    ? getRoleSettings(current.membership.hackathon.settings)
+    : null;
+
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
-      <AppHeader name={user.name} role={roleLabels[user.role]} />
+      <AppHeader
+        name={user.name}
+        role={role && roleSettings ? roleSettings[role].label : undefined}
+        hackathons={toHackathonOptions(current.memberships)}
+        activeHackathonId={current.membership?.hackathonId}
+      />
       <main className="mx-auto max-w-3xl px-6 py-10 lg:px-8">
         <Link
           href="/dashboard"

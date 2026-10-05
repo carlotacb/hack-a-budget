@@ -19,7 +19,9 @@ afterEach(() => {
 describe("OrganizerNav", () => {
   test("shows only the links allowed for an ORGANIZER role", () => {
     usePathnameMock.mockReturnValue("/organizer");
-    render(<OrganizerNav role="ORGANIZER" />);
+    render(
+      <OrganizerNav role="ORGANIZER" travelReimbursementEnabled={true} canSeeBudget={false} />,
+    );
 
     expect(screen.getByText("Dashboard")).toBeTruthy();
     expect(screen.getByText("Expenses")).toBeTruthy();
@@ -32,7 +34,9 @@ describe("OrganizerNav", () => {
 
   test("shows all links for an ADMIN role", () => {
     usePathnameMock.mockReturnValue("/organizer");
-    render(<OrganizerNav role="ADMIN" />);
+    render(
+      <OrganizerNav role="ADMIN" travelReimbursementEnabled={true} canSeeBudget={true} />,
+    );
 
     expect(screen.getByText("Dashboard")).toBeTruthy();
     expect(screen.getByText("Budget")).toBeTruthy();
@@ -40,12 +44,14 @@ describe("OrganizerNav", () => {
     expect(screen.getByText("Travel")).toBeTruthy();
     expect(screen.getByText("Travel dashboard")).toBeTruthy();
     expect(screen.getByText("Users")).toBeTruthy();
-    expect(screen.getByText("Metadata")).toBeTruthy();
+    expect(screen.getByText("Settings")).toBeTruthy();
   });
 
   test("shows DIRECTOR-appropriate links without ADMIN-only ones", () => {
     usePathnameMock.mockReturnValue("/organizer");
-    render(<OrganizerNav role="DIRECTOR" />);
+    render(
+      <OrganizerNav role="DIRECTOR" travelReimbursementEnabled={true} canSeeBudget={true} />,
+    );
 
     expect(screen.getByText("Budget")).toBeTruthy();
     expect(screen.getByText("Travel")).toBeTruthy();
@@ -53,9 +59,26 @@ describe("OrganizerNav", () => {
     expect(screen.queryByText("Metadata")).toBeNull();
   });
 
+  test("shows Budget for an ORGANIZER_LEAD role when seeBudget is granted", () => {
+    usePathnameMock.mockReturnValue("/organizer");
+    render(
+      <OrganizerNav
+        role="ORGANIZER_LEAD"
+        travelReimbursementEnabled={true}
+        canSeeBudget={true}
+      />,
+    );
+
+    expect(screen.getByText("Budget")).toBeTruthy();
+    expect(screen.queryByText("Users")).toBeNull();
+    expect(screen.queryByText("Settings")).toBeNull();
+  });
+
   test("marks the dashboard link active only on an exact match", () => {
     usePathnameMock.mockReturnValue("/organizer/expenses");
-    render(<OrganizerNav role="ADMIN" />);
+    render(
+      <OrganizerNav role="ADMIN" travelReimbursementEnabled={true} canSeeBudget={true} />,
+    );
 
     const dashboardLink = screen.getByText("Dashboard").closest("a");
     const expensesLink = screen.getByText("Expenses").closest("a");
@@ -64,9 +87,22 @@ describe("OrganizerNav", () => {
     expect(expensesLink?.className).toContain("organizer-nav-link-active");
   });
 
+  test("hides travel links when travel reimbursement is disabled", () => {
+    usePathnameMock.mockReturnValue("/organizer");
+    render(
+      <OrganizerNav role="ADMIN" travelReimbursementEnabled={false} canSeeBudget={true} />,
+    );
+
+    expect(screen.getByText("Budget")).toBeTruthy();
+    expect(screen.queryByText("Travel")).toBeNull();
+    expect(screen.queryByText("Travel dashboard")).toBeNull();
+  });
+
   test("marks a nested route active via startsWith matching", () => {
     usePathnameMock.mockReturnValue("/organizer/travel-reimbursements/abc123");
-    render(<OrganizerNav role="ADMIN" />);
+    render(
+      <OrganizerNav role="ADMIN" travelReimbursementEnabled={true} canSeeBudget={true} />,
+    );
 
     const travelLink = screen.getByText("Travel").closest("a");
 

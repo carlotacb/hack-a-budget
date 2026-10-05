@@ -1,31 +1,33 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
-const authMock = vi.fn();
-vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
+const getPermittedOrganizerMock = vi.fn();
+vi.mock("@/lib/permissions", () => ({
+  getPermittedOrganizer: (...args: unknown[]) =>
+    getPermittedOrganizerMock(...args),
+}));
 
-const findUniqueUserMock = vi.fn();
+const getOrganizerIdMock = vi.fn();
+vi.mock("@/lib/organizer", () => ({
+  getOrganizerId: (...args: unknown[]) => getOrganizerIdMock(...args),
+}));
+
 const categoryFindFirstMock = vi.fn();
 const budgetFindFirstMock = vi.fn();
-const departmentUpsertMock = vi.fn();
 const expenseCreateMock = vi.fn();
-const expenseFindUniqueMock = vi.fn();
+const expenseFindFirstMock = vi.fn();
 const expenseUpdateMock = vi.fn();
 const expenseDeleteMock = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique: (...args: unknown[]) => findUniqueUserMock(...args) },
     category: {
       findFirst: (...args: unknown[]) => categoryFindFirstMock(...args),
     },
     budget: {
       findFirst: (...args: unknown[]) => budgetFindFirstMock(...args),
     },
-    department: {
-      upsert: (...args: unknown[]) => departmentUpsertMock(...args),
-    },
     expense: {
       create: (...args: unknown[]) => expenseCreateMock(...args),
-      findUnique: (...args: unknown[]) => expenseFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => expenseFindFirstMock(...args),
       update: (...args: unknown[]) => expenseUpdateMock(...args),
       delete: (...args: unknown[]) => expenseDeleteMock(...args),
     },
@@ -67,26 +69,37 @@ const validFields = {
 };
 
 function mockAdmin() {
-  authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-  findUniqueUserMock.mockResolvedValueOnce({ role: "ADMIN" });
+  getPermittedOrganizerMock.mockResolvedValueOnce({
+    userId: "u1",
+    hackathonId: "h1",
+    role: "ADMIN",
+    departmentId: null,
+  });
+  getOrganizerIdMock.mockResolvedValueOnce({
+    userId: "u1",
+    hackathonId: "h1",
+  });
 }
 
 function mockCategoryWithSubcategory() {
   categoryFindFirstMock.mockResolvedValueOnce({
     id: "c1",
     name: "Food",
+    departmentId: "d1",
     subcategories: [{ id: "clabcdefghijklmnopqrstu3", departmentId: "d1" }],
   });
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   budgetFindFirstMock.mockResolvedValue({ id: "b1" });
+  putMock.mockResolvedValue({ url: "https://blob.vercel-storage.com/tickets/test.pdf" });
+  delMock.mockResolvedValue(undefined);
 });
 
 describe("addExpense", () => {
   test("errors when not authorized", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getPermittedOrganizerMock.mockResolvedValueOnce(null);
 
     const result = await addExpense({}, formData(validFields));
 
@@ -148,21 +161,20 @@ describe("addExpense", () => {
     );
   });
 
-  test("derives the department from the General department for categories without subcategories", async () => {
+  test("derives the department from the category for categories without subcategories", async () => {
     mockAdmin();
     categoryFindFirstMock.mockResolvedValueOnce({
       id: "c2",
       name: "Unexpected expenses",
+      departmentId: "general1",
       subcategories: [],
     });
-    departmentUpsertMock.mockResolvedValueOnce({ id: "general1", name: "General" });
     expenseCreateMock.mockResolvedValueOnce({ id: "e1" });
 
     const { subcategoryId, ...fieldsWithoutSubcategory } = validFields;
     void subcategoryId;
     const result = await addExpense({}, formData(fieldsWithoutSubcategory));
 
-    expect(departmentUpsertMock).toHaveBeenCalled();
     expect(expenseCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         categoryId: "c2",
@@ -230,7 +242,7 @@ describe("addExpense", () => {
 
 describe("updateExpense", () => {
   test("errors when not authorized", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await updateExpense({}, formData({ ...validFields, id: "e1" }));
 
@@ -239,7 +251,7 @@ describe("updateExpense", () => {
 
   test("errors when the expense no longer exists", async () => {
     mockAdmin();
-    expenseFindUniqueMock.mockResolvedValueOnce(null);
+    expenseFindFirstMock.mockResolvedValueOnce(null);
 
     const result = await updateExpense({}, formData({ ...validFields, id: "e1" }));
 
@@ -248,7 +260,7 @@ describe("updateExpense", () => {
 
   test("updates the expense and keeps the existing ticket when none is uploaded", async () => {
     mockAdmin();
-    expenseFindUniqueMock.mockResolvedValueOnce({
+    expenseFindFirstMock.mockResolvedValueOnce({
       id: "e1",
       ticketPath: "https://blob/old.pdf",
     });
@@ -267,7 +279,7 @@ describe("updateExpense", () => {
 
   test("replaces the ticket and deletes the previous one", async () => {
     mockAdmin();
-    expenseFindUniqueMock.mockResolvedValueOnce({
+    expenseFindFirstMock.mockResolvedValueOnce({
       id: "e1",
       ticketPath: "https://blob/old.pdf",
     });
@@ -292,7 +304,7 @@ describe("updateExpense", () => {
 
 describe("deleteExpense", () => {
   test("errors when not authorized", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await deleteExpense({}, formData({ id: "e1" }));
 
@@ -301,7 +313,7 @@ describe("deleteExpense", () => {
 
   test("errors when the expense no longer exists", async () => {
     mockAdmin();
-    expenseFindUniqueMock.mockResolvedValueOnce(null);
+    expenseFindFirstMock.mockResolvedValueOnce(null);
 
     const result = await deleteExpense({}, formData({ id: "e1" }));
 
@@ -310,7 +322,7 @@ describe("deleteExpense", () => {
 
   test("deletes the expense and its ticket", async () => {
     mockAdmin();
-    expenseFindUniqueMock.mockResolvedValueOnce({
+    expenseFindFirstMock.mockResolvedValueOnce({
       id: "e1",
       ticketPath: "https://blob/old.pdf",
     });

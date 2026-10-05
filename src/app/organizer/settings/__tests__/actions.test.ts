@@ -79,7 +79,7 @@ vi.mock("next/cache", () => ({
 }));
 
 const { saveMetadata } = await import(
-  "@/app/organizer/settings/metadata/actions"
+  "@/app/organizer/settings/actions"
 );
 
 function formData(fields: Record<string, string>) {
@@ -139,7 +139,7 @@ describe("saveMetadata", () => {
 
     expect(categoryCreateMock).toHaveBeenCalledWith({ data: { name: "Food" } });
     expect(revalidatePathMock).toHaveBeenCalledWith(
-      "/organizer/settings/metadata",
+      "/organizer/settings",
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/budget");
     expect(revalidatePathMock).toHaveBeenCalledWith("/organizer/expenses");
@@ -721,7 +721,7 @@ describe("saveMetadata deleteCategory / deleteSubcategory", () => {
 
     expect(categoryDeleteMock).toHaveBeenCalledWith({ where: { id } });
     expect(revalidatePathMock).toHaveBeenCalledWith(
-      "/organizer/settings/metadata",
+      "/organizer/settings",
     );
     expect(result).toEqual({ success: true });
   });

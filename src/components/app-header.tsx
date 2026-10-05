@@ -4,13 +4,26 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { UserRound } from "lucide-react";
+import {
+  HackathonSwitcher,
+  type HackathonSwitcherProps,
+} from "@/components/hackathon-switcher";
 
 type AppHeaderProps = {
   name?: string | null;
-  role: "Hacker" | "Organizer" | "Director" | "Admin";
+  // A hackathon's role labels are configurable (renamed/activated per
+  // event), so this is just the display label, not a fixed enum.
+  role?: string;
+  hackathons?: HackathonSwitcherProps["options"];
+  activeHackathonId?: string;
 };
 
-export function AppHeader({ name, role }: AppHeaderProps) {
+export function AppHeader({
+  name,
+  role,
+  hackathons,
+  activeHackathonId,
+}: AppHeaderProps) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
 
@@ -34,6 +47,17 @@ export function AppHeader({ name, role }: AppHeaderProps) {
           <span className="tracking-[-0.02em]">BudgetHack</span>
         </Link>
         <div className="flex items-center gap-4">
+          {hackathons && activeHackathonId && (
+            <HackathonSwitcher
+              options={hackathons}
+              activeHackathonId={activeHackathonId}
+            />
+          )}
+          {role && (
+            <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+              {role}
+            </span>
+          )}
           <Link
             href="/profile"
             className="secondary-button !h-10 !px-3 text-sm"
@@ -42,12 +66,11 @@ export function AppHeader({ name, role }: AppHeaderProps) {
             <UserRound size={17} />
             <span className="hidden md:inline">Profile</span>
           </Link>
-          <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-slate-800">
-              {name ?? "Participant"}
-            </p>
-            <p className="text-xs text-slate-500">{role}</p>
-          </div>
+          {name && (
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-medium text-slate-800">{name}</p>
+            </div>
+          )}
           <div className="text-right">
             <button
               type="button"

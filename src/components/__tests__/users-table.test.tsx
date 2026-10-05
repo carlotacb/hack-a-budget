@@ -1,9 +1,13 @@
 import { describe, expect, test, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+import { DEFAULT_ROLE_SETTINGS } from "@/lib/role-settings";
 
 const updateUserRoleMock = vi.fn();
+const deleteOrganizerUserMock = vi.fn();
 vi.mock("@/app/organizer/actions", () => ({
   updateUserRole: (...args: unknown[]) => updateUserRoleMock(...args),
+  deleteOrganizerUser: (...args: unknown[]) =>
+    deleteOrganizerUserMock(...args),
 }));
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
@@ -16,33 +20,42 @@ const users = [
     name: "Raquel Alvarez",
     email: "raquel.alvarez@hackupc.com",
     role: "HACKER" as const,
+    departmentId: null,
     gender: "WOMAN" as const,
-    city: "Barcelona",
-    major: "CS",
+    diet: "VEGETARIAN" as const,
+    tshirtSize: "M" as const,
   },
   {
     id: "u2",
     name: "Demo Organizer",
     email: "organizer@example.com",
     role: "ADMIN" as const,
+    departmentId: null,
     gender: null,
-    city: null,
-    major: null,
+    diet: null,
+    tshirtSize: null,
   },
   {
     id: "u3",
     name: null,
     email: "noname@example.com",
     role: "HACKER" as const,
+    departmentId: null,
     gender: null,
-    city: null,
-    major: null,
+    diet: null,
+    tshirtSize: null,
   },
 ];
 
+const defaultProps = {
+  roleSettings: DEFAULT_ROLE_SETTINGS,
+  departments: [],
+};
+
+
 describe("UsersTable", () => {
   test("renders every user when the search field is empty", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     expect(screen.getByText("Raquel Alvarez")).toBeInTheDocument();
     expect(screen.getByText("Demo Organizer")).toBeInTheDocument();
@@ -50,7 +63,7 @@ describe("UsersTable", () => {
   });
 
   test("filters as you type, matching by name, case-insensitively", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.change(screen.getByLabelText("Search users by name or email"), {
       target: { value: "raquel" },
@@ -61,7 +74,7 @@ describe("UsersTable", () => {
   });
 
   test("filters as you type, matching by email", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.change(screen.getByLabelText("Search users by name or email"), {
       target: { value: "hackupc" },
@@ -73,7 +86,7 @@ describe("UsersTable", () => {
   });
 
   test("shows an empty state when nothing matches", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.change(screen.getByLabelText("Search users by name or email"), {
       target: { value: "nobody-matches-this" },
@@ -86,7 +99,7 @@ describe("UsersTable", () => {
   });
 
   test("clearing the search restores every user", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     const input = screen.getByLabelText("Search users by name or email");
     fireEvent.change(input, { target: { value: "raquel" } });
@@ -96,17 +109,16 @@ describe("UsersTable", () => {
     expect(screen.getByText("Demo Organizer")).toBeInTheDocument();
   });
 
-  test("does not show gender, city, or major in the table itself", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+  test("does not show gender, diet, or t-shirt size in the table itself", () => {
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     expect(screen.queryByText("Woman")).not.toBeInTheDocument();
-    expect(screen.queryByText("Barcelona")).not.toBeInTheDocument();
-    expect(screen.queryByText("CS")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vegetarian")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   test("opens a details dialog with the full profile when Info is clicked", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "View details for Raquel Alvarez" }),
@@ -114,14 +126,14 @@ describe("UsersTable", () => {
 
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getByText("raquel.alvarez@hackupc.com")).toBeInTheDocument();
-    expect(dialog.getByText("Hacker")).toBeInTheDocument();
+    expect(dialog.getByText("Participant")).toBeInTheDocument();
     expect(dialog.getByText("Woman")).toBeInTheDocument();
-    expect(dialog.getByText("Barcelona")).toBeInTheDocument();
-    expect(dialog.getByText("CS")).toBeInTheDocument();
+    expect(dialog.getByText("Vegetarian")).toBeInTheDocument();
+    expect(dialog.getByText("M")).toBeInTheDocument();
   });
 
   test("falls back to 'Not provided' for missing profile fields in the dialog", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -134,7 +146,7 @@ describe("UsersTable", () => {
   });
 
   test("closes the details dialog", () => {
-    render(<UsersTable users={users} currentUserId="u2" />);
+    render(<UsersTable users={users} currentUserId="u2" {...defaultProps} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "View details for Raquel Alvarez" }),

@@ -12,8 +12,8 @@ const baseUser = {
   name: "Ada Lovelace",
   email: "ada@example.com",
   gender: "WOMAN" as const,
-  city: "Madrid",
-  major: "Computer Science",
+  diet: "VEGETARIAN" as const,
+  tshirtSize: "M" as const,
 };
 
 beforeEach(() => {
@@ -33,8 +33,8 @@ describe("ProfileForm", () => {
     );
     expect(screen.getByText("ada@example.com")).toBeInTheDocument();
     expect(screen.getByLabelText("Gender")).toHaveValue("WOMAN");
-    expect(screen.getByLabelText("City")).toHaveValue("Madrid");
-    expect(screen.getByLabelText("Major")).toHaveValue("Computer Science");
+    expect(screen.getByLabelText("Diet")).toHaveValue("VEGETARIAN");
+    expect(screen.getByLabelText("T-shirt size")).toHaveValue("M");
   });
 
   test("falls back to empty strings for missing user fields", () => {
@@ -44,15 +44,15 @@ describe("ProfileForm", () => {
           name: null,
           email: "ada@example.com",
           gender: null,
-          city: null,
-          major: null,
+          diet: null,
+          tshirtSize: null,
         }}
       />,
     );
 
     expect(screen.getByLabelText("Complete name")).toHaveValue("");
-    expect(screen.getByLabelText("City")).toHaveValue("");
-    expect(screen.getByLabelText("Major")).toHaveValue("");
+    expect(screen.getByLabelText("Diet")).toHaveValue("");
+    expect(screen.getByLabelText("T-shirt size")).toHaveValue("");
   });
 
   test("updates controlled fields as the user types", () => {
@@ -61,18 +61,10 @@ describe("ProfileForm", () => {
     fireEvent.change(screen.getByLabelText("Complete name"), {
       target: { value: "Grace Hopper" },
     });
-    fireEvent.change(screen.getByLabelText("City"), {
-      target: { value: "Barcelona" },
-    });
-    fireEvent.change(screen.getByLabelText("Major"), {
-      target: { value: "Mathematics" },
-    });
 
     expect(screen.getByLabelText("Complete name")).toHaveValue(
       "Grace Hopper",
     );
-    expect(screen.getByLabelText("City")).toHaveValue("Barcelona");
-    expect(screen.getByLabelText("Major")).toHaveValue("Mathematics");
   });
 
   test("submits the form with the current field values", async () => {
@@ -93,8 +85,8 @@ describe("ProfileForm", () => {
     const formData = updateProfileMock.mock.calls[0][1] as FormData;
     expect(formData.get("name")).toBe("Grace Hopper");
     expect(formData.get("gender")).toBe("NON_BINARY");
-    expect(formData.get("city")).toBe("Madrid");
-    expect(formData.get("major")).toBe("Computer Science");
+    expect(formData.get("diet")).toBe("VEGETARIAN");
+    expect(formData.get("tshirtSize")).toBe("M");
   });
 
   test("disables the submit button and shows saving label while pending", async () => {

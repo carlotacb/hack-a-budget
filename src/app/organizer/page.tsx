@@ -5,6 +5,7 @@ import {
   List,
   ReceiptText,
 } from "lucide-react";
+import { BudgetSelector } from "@/components/budget-selector";
 import { requireOrganizer } from "@/lib/organizer";
 import { prisma } from "@/lib/prisma";
 
@@ -17,30 +18,97 @@ function percentage(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
 }
 
-export default async function OrganizerPage() {
-  await requireOrganizer(["ADMIN", "DIRECTOR", "ORGANIZER"]);
-  const [expenses, categories, departments] = await Promise.all([
-    prisma.expense.findMany({
-      include: { category: true, department: true },
-      orderBy: { incurredAt: "desc" },
-    }),
-    prisma.category.findMany({
-      where: { active: true },
-      include: { expenses: { select: { amountCents: true } } },
-      orderBy: { name: "asc" },
-    }),
-    prisma.department.findMany({
-      where: { active: true },
-      include: { expenses: { select: { amountCents: true } } },
-      orderBy: { name: "asc" },
-    }),
+export default async function OrganizerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ budgetId?: string }>;
+}) {
+  const organizer = await requireOrganizer([
+    "ADMIN",
+    "DIRECTOR",
+    "ORGANIZER",
+    "ORGANIZER_LEAD",
   ]);
+  const hackathonId = organizer.hackathonId;
+  // Organizers/Organizer Leads tied to a department only ever see that
+  // department's slice of the event: their own budget, their own
+  // categories, and their own recent expenses. Admins/Directors (and
+  // organizers not linked to a department) keep the event-wide view.
+  const scopedDepartmentId = organizer.departmentId;
+
+  const { budgetId: requestedBudgetId } = await searchParams;
+
+  const budgets = await prisma.budget.findMany({
+    where: { hackathonId },
+    select: { id: true, name: true, isActive: true },
+    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+  });
+
+  // Default to the active budget — or the most recent one if nothing is
+  // active — but let organizers pick any past budget to see how it went.
+  const selectedBudgetId =
+    (requestedBudgetId &&
+      budgets.find((budget) => budget.id === requestedBudgetId)?.id) ||
+    budgets.find((budget) => budget.isActive)?.id ||
+    budgets[0]?.id ||
+    null;
+
+  const [budgetCategories, expenses, departments] = await Promise.all([
+    selectedBudgetId
+      ? prisma.budgetCategory.findMany({
+          where: {
+            budgetId: selectedBudgetId,
+            ...(scopedDepartmentId
+              ? { category: { departmentId: scopedDepartmentId } }
+              : {}),
+          },
+          select: { id: true, name: true, budgetCents: true, categoryId: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+    selectedBudgetId
+      ? prisma.expense.findMany({
+          where: {
+            hackathonId,
+            budgetId: selectedBudgetId,
+            ...(scopedDepartmentId ? { departmentId: scopedDepartmentId } : {}),
+          },
+          include: { category: true, department: true },
+          orderBy: { incurredAt: "desc" },
+        })
+      : Promise.resolve([]),
+    scopedDepartmentId
+      ? Promise.resolve([])
+      : prisma.department.findMany({
+          where: { hackathonId, active: true },
+          select: { id: true, name: true, color: true },
+          orderBy: { name: "asc" },
+        }),
+  ]);
+
+  const spentByCategoryId = new Map<string, number>();
+  for (const expense of expenses) {
+    if (!expense.categoryId) continue;
+    spentByCategoryId.set(
+      expense.categoryId,
+      (spentByCategoryId.get(expense.categoryId) ?? 0) + expense.amountCents,
+    );
+  }
+
+  const spentByDepartmentId = new Map<string, number>();
+  for (const expense of expenses) {
+    if (!expense.departmentId) continue;
+    spentByDepartmentId.set(
+      expense.departmentId,
+      (spentByDepartmentId.get(expense.departmentId) ?? 0) + expense.amountCents,
+    );
+  }
 
   const totalSpent = expenses.reduce(
     (total, expense) => total + expense.amountCents,
     0,
   );
-  const totalBudget = categories.reduce(
+  const totalBudget = budgetCategories.reduce(
     (total, category) => total + category.budgetCents,
     0,
   );
@@ -55,14 +123,20 @@ export default async function OrganizerPage() {
         <div>
           <p className="eyebrow">Organizer dashboard</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-slate-950">
-            Event finances at a glance.
+            {scopedDepartmentId
+              ? `${organizer.departmentName ?? "Your department"} finances at a glance.`
+              : "Event finances at a glance."}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">
-            Track total spend, budget utilization, and where event money is
-            going.
+            {scopedDepartmentId
+              ? "Track your department's spend, budget utilization, and recent activity."
+              : "Track total spend, budget utilization, and where event money is going."}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          {selectedBudgetId && (
+            <BudgetSelector budgets={budgets} selectedBudgetId={selectedBudgetId} />
+          )}
           <Link href="/organizer/expenses" className="secondary-button">
             <List size={18} />
             Expenses
@@ -88,18 +162,19 @@ export default async function OrganizerPage() {
         </article>
       </section>
 
-      <section className="mt-6 grid gap-6 lg:grid-cols-2">
+      <section
+        className={`mt-6 grid gap-6 ${scopedDepartmentId ? "" : "lg:grid-cols-2"}`}
+      >
         <article className="dashboard-card">
           <p className="eyebrow">Budget utilization</p>
           <h2 className="mb-6 mt-1 text-xl font-semibold text-slate-900">
             Spend by category
           </h2>
           <div className="space-y-5">
-            {categories.map((category) => {
-              const spent = category.expenses.reduce(
-                (total, expense) => total + expense.amountCents,
-                0,
-              );
+            {budgetCategories.map((category) => {
+              const spent = category.categoryId
+                ? (spentByCategoryId.get(category.categoryId) ?? 0)
+                : 0;
               const used = percentage(spent, category.budgetCents);
 
               return (
@@ -122,62 +197,71 @@ export default async function OrganizerPage() {
                 </div>
               );
             })}
+            {budgetCategories.length === 0 && (
+              <p className="text-sm text-slate-500">
+                No budget categories for this budget.
+              </p>
+            )}
           </div>
         </article>
 
-        <article className="dashboard-card">
-          <p className="eyebrow">Ownership</p>
-          <h2 className="mb-6 mt-1 text-xl font-semibold text-slate-900">
-            Spend by department
-          </h2>
-          <div className="space-y-5">
-            {departments.map((department) => {
-              const spent = department.expenses.reduce(
-                (total, expense) => total + expense.amountCents,
-                0,
-              );
-              const share = percentage(spent, totalSpent);
+        {!scopedDepartmentId && (
+          <article className="dashboard-card">
+            <p className="eyebrow">Ownership</p>
+            <h2 className="mb-6 mt-1 text-xl font-semibold text-slate-900">
+              Spend by department
+            </h2>
+            <div className="space-y-5">
+              {departments.map((department) => {
+                const spent = spentByDepartmentId.get(department.id) ?? 0;
+                const share = percentage(spent, totalSpent);
 
-              return (
-                <div key={department.id}>
+                return (
+                  <div key={department.id}>
+                    <div className="mb-2 flex items-center justify-between gap-4 text-sm">
+                      <span className="font-medium text-slate-800">
+                        {department.name}
+                      </span>
+                      <span className="text-slate-500">
+                        {currency.format(spent / 100)} · {share}%
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${share}%`,
+                          backgroundColor: department.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {unassignedDepartmentSpend > 0 && (
+                <div>
                   <div className="mb-2 flex items-center justify-between gap-4 text-sm">
                     <span className="font-medium text-slate-800">
-                      {department.name}
+                      Unassigned
                     </span>
                     <span className="text-slate-500">
-                      {currency.format(spent / 100)} · {share}%
+                      {currency.format(unassignedDepartmentSpend / 100)} ·{" "}
+                      {percentage(unassignedDepartmentSpend, totalSpent)}%
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${share}%` }}
+                      className="h-full rounded-full bg-slate-400"
+                      style={{
+                        width: `${percentage(unassignedDepartmentSpend, totalSpent)}%`,
+                      }}
                     />
                   </div>
                 </div>
-              );
-            })}
-            {unassignedDepartmentSpend > 0 && (
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-slate-800">Unassigned</span>
-                  <span className="text-slate-500">
-                    {currency.format(unassignedDepartmentSpend / 100)} ·{" "}
-                    {percentage(unassignedDepartmentSpend, totalSpent)}%
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-slate-400"
-                    style={{
-                      width: `${percentage(unassignedDepartmentSpend, totalSpent)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </article>
+              )}
+            </div>
+          </article>
+        )}
       </section>
 
       <section className="dashboard-card mt-6">
@@ -224,3 +308,4 @@ export default async function OrganizerPage() {
     </main>
   );
 }
+

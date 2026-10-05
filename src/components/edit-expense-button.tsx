@@ -4,16 +4,22 @@ import { Pencil, X } from "lucide-react";
 import { useState } from "react";
 import {
   ExpenseForm,
+  type ExpenseFormBudget,
   type ExpenseFormCategory,
   type ExpenseFormValues,
 } from "@/components/expense-form";
 
 type EditExpenseButtonProps = {
   categories: ExpenseFormCategory[];
+  budgets?: ExpenseFormBudget[];
   expense: ExpenseFormValues;
 };
 
-export function EditExpenseButton({ categories, expense }: EditExpenseButtonProps) {
+export function EditExpenseButton({
+  categories,
+  budgets,
+  expense,
+}: EditExpenseButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -49,7 +55,11 @@ export function EditExpenseButton({ categories, expense }: EditExpenseButtonProp
               </button>
             </div>
             <div className="overflow-y-auto p-5">
-              <ExpenseForm categories={categories} expense={expense} />
+              <ExpenseForm
+                categories={categories}
+                budgets={budgets}
+                expense={expense}
+              />
             </div>
           </div>
         </div>

@@ -1,21 +1,12 @@
 import { DefaultSession } from "next-auth";
-import { Role } from "@prisma/client";
 
+// Role is no longer carried on the session: a single account can belong to
+// several hackathons with a different role in each, so role is resolved
+// per-request from the active HackathonMembership (see lib/current-hackathon.ts).
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: Role;
     } & DefaultSession["user"];
-  }
-
-  interface User {
-    role: Role;
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    role?: Role;
   }
 }

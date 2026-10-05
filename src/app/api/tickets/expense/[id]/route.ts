@@ -12,15 +12,15 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const organizerId = await getOrganizerId(["ADMIN", "DIRECTOR", "ORGANIZER"]);
+  const organizer = await getOrganizerId(["ADMIN", "DIRECTOR", "ORGANIZER"]);
 
-  if (!organizerId) {
+  if (!organizer) {
     return new NextResponse("Not found", { status: 404 });
   }
 
   const { id } = await params;
-  const expense = await prisma.expense.findUnique({
-    where: { id },
+  const expense = await prisma.expense.findFirst({
+    where: { id, hackathonId: organizer.hackathonId },
     select: { ticketPath: true },
   });
 

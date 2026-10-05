@@ -2,13 +2,18 @@
 
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
-import { ExpenseForm, type ExpenseFormCategory } from "@/components/expense-form";
+import {
+  ExpenseForm,
+  type ExpenseFormBudget,
+  type ExpenseFormCategory,
+} from "@/components/expense-form";
 
 type AddExpenseButtonProps = {
   categories: ExpenseFormCategory[];
+  budgets?: ExpenseFormBudget[];
 };
 
-export function AddExpenseButton({ categories }: AddExpenseButtonProps) {
+export function AddExpenseButton({ categories, budgets }: AddExpenseButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -40,7 +45,7 @@ export function AddExpenseButton({ categories }: AddExpenseButtonProps) {
               </button>
             </div>
             <div className="overflow-y-auto p-5">
-              <ExpenseForm categories={categories} />
+              <ExpenseForm categories={categories} budgets={budgets} />
             </div>
           </div>
         </div>

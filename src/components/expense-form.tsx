@@ -15,7 +15,19 @@ export type ExpenseFormCategory = {
   id: string;
   name: string;
   departmentName: string;
-  subcategories: { id: string; name: string; departmentName: string }[];
+  departmentColor?: string;
+  subcategories: {
+    id: string;
+    name: string;
+    departmentName: string;
+    departmentColor?: string;
+  }[];
+};
+
+export type ExpenseFormBudget = {
+  id: string;
+  name: string;
+  isActive: boolean;
 };
 
 export type ExpenseFormValues = {
@@ -23,6 +35,7 @@ export type ExpenseFormValues = {
   description: string;
   categoryId: string | null;
   subcategoryId: string | null;
+  budgetId?: string | null;
   amountCents: number;
   incurredAt: string;
   vendor: string | null;
@@ -30,6 +43,7 @@ export type ExpenseFormValues = {
 
 type ExpenseFormProps = {
   categories: ExpenseFormCategory[];
+  budgets?: ExpenseFormBudget[];
   expense?: ExpenseFormValues;
 };
 
@@ -51,7 +65,11 @@ function formatDate(isoDate: string) {
   ].join("/");
 }
 
-export function ExpenseForm({ categories, expense }: ExpenseFormProps) {
+export function ExpenseForm({
+  categories,
+  budgets = [],
+  expense,
+}: ExpenseFormProps) {
   const isEditing = Boolean(expense);
   const action = isEditing ? updateExpense : addExpense;
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -60,6 +78,12 @@ export function ExpenseForm({ categories, expense }: ExpenseFormProps) {
   );
   const [subcategoryId, setSubcategoryId] = useState(
     expense?.subcategoryId ?? "",
+  );
+  const [budgetId, setBudgetId] = useState(
+    expense?.budgetId ??
+      budgets.find((budget) => budget.isActive)?.id ??
+      budgets[0]?.id ??
+      "",
   );
   const [ticketName, setTicketName] = useState("");
 
@@ -70,10 +94,12 @@ export function ExpenseForm({ categories, expense }: ExpenseFormProps) {
   const subcategories = category?.subcategories ?? [];
   const hasSubcategories = subcategories.length > 0;
 
-  const departmentName = hasSubcategories
-    ? (subcategories.find((subcategory) => subcategory.id === subcategoryId)
-        ?.departmentName ?? subcategories[0]?.departmentName ?? "")
-    : (category?.departmentName ?? "");
+  const department = hasSubcategories
+    ? (subcategories.find((subcategory) => subcategory.id === subcategoryId) ??
+      subcategories[0])
+    : category;
+  const departmentName = department?.departmentName ?? "";
+  const departmentColor = department?.departmentColor ?? "#64748b";
 
   function handleCategoryChange(nextCategoryId: string) {
     setCategoryId(nextCategoryId);
@@ -88,6 +114,25 @@ export function ExpenseForm({ categories, expense }: ExpenseFormProps) {
       <FormPendingOverlay />
       {isEditing && <input type="hidden" name="id" value={expense!.id} />}
       <div className="grid gap-5 sm:grid-cols-2">
+        {budgets.length > 0 && (
+          <label className="field sm:col-span-2">
+            <span>Budget</span>
+            <select
+              name="budgetId"
+              value={budgetId}
+              onChange={(event) => setBudgetId(event.target.value)}
+              required
+            >
+              {budgets.map((budget) => (
+                <option key={budget.id} value={budget.id}>
+                  {budget.name}
+                  {budget.isActive ? " (active)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <label className="field sm:col-span-2">
           <span>Description</span>
           <input
@@ -138,7 +183,8 @@ export function ExpenseForm({ categories, expense }: ExpenseFormProps) {
           <span className="flex min-h-12 items-center">
             <span
               key={departmentName}
-              className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+              className="rounded-full px-3 py-1 text-sm font-medium text-white"
+              style={{ backgroundColor: departmentColor }}
             >
               {departmentName}
             </span>

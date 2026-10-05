@@ -7,6 +7,7 @@ import {
   type TravelFormValues,
 } from "@/components/travel-reimbursement-form";
 import { formatCurrencyOption } from "@/components/constants";
+import { isTravelReimbursementEnabled } from "@/lib/hackathon";
 import { prisma } from "@/lib/prisma";
 import {
   editableTravelStatuses,
@@ -17,6 +18,7 @@ import {
   travelStatusClasses,
   travelStatusLabels,
 } from "@/lib/travel";
+import { getRoleSettings } from "@/lib/role-settings";
 
 type HackerSection = "info" | "travel";
 
@@ -26,12 +28,23 @@ export default async function HackerPage({
   searchParams: Promise<{ section?: string }>;
 }) {
   const { section: rawSection } = await searchParams;
-  const section: HackerSection | null =
-    rawSection === "info" || rawSection === "travel" ? rawSection : null;
   const user = await requireHacker();
-  const [reimbursement, settings] = await Promise.all([
+  const travelReimbursementEnabled = await isTravelReimbursementEnabled(
+    user.hackathonId,
+  );
+  const section: HackerSection | null =
+    rawSection === "info" ||
+    (rawSection === "travel" && travelReimbursementEnabled)
+      ? (rawSection as HackerSection)
+      : null;
+  const [reimbursement, settings, hackathon] = await Promise.all([
     prisma.travelReimbursement.findUnique({
-      where: { hackerId: user.id },
+      where: {
+        hackathonId_hackerId: {
+          hackathonId: user.hackathonId,
+          hackerId: user.id,
+        },
+      },
       include: {
         statusEvents: {
           include: { actor: { select: { name: true } } },
@@ -39,8 +52,15 @@ export default async function HackerPage({
         },
       },
     }),
-    prisma.travelEventSettings.findUnique({ where: { id: "event" } }),
+    prisma.travelEventSettings.findUnique({
+      where: { hackathonId: user.hackathonId },
+    }),
+    prisma.hackathon.findUnique({
+      where: { id: user.hackathonId },
+      select: { settings: true },
+    }),
   ]);
+  const roleSettings = getRoleSettings(hackathon?.settings);
 
   const canEdit =
     !reimbursement || editableTravelStatuses.includes(reimbursement.status);
@@ -101,7 +121,12 @@ export default async function HackerPage({
 
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
-      <AppHeader name={user.name} role="Hacker" />
+      <AppHeader
+        name={user.name}
+        role={roleSettings.HACKER.label}
+        hackathons={user.hackathons}
+        activeHackathonId={user.hackathonId}
+      />
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12 lg:px-8">
         {section === null && (
           <section aria-label="What do you want to do?">
@@ -116,12 +141,14 @@ export default async function HackerPage({
                 title="See information of the event"
                 description="Dates, schedule and everything you need to know about the hackathon."
               />
-              <SectionCard
-                href="/hacker?section=travel"
-                icon={<Plane size={24} aria-hidden="true" />}
-                title="Ask for travel reimbursement"
-                description="Submit your round trip and follow the status of your request."
-              />
+              {travelReimbursementEnabled && (
+                <SectionCard
+                  href="/hacker?section=travel"
+                  icon={<Plane size={24} aria-hidden="true" />}
+                  title="Ask for travel reimbursement"
+                  description="Submit your round trip and follow the status of your request."
+                />
+              )}
             </div>
           </section>
         )}

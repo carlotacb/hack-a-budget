@@ -20,8 +20,8 @@ export async function GET(
   }
 
   const { id } = await params;
-  const reimbursement = await prisma.travelReimbursement.findUnique({
-    where: { id },
+  const reimbursement = await prisma.travelReimbursement.findFirst({
+    where: { id, hackathonId: user.hackathonId },
     select: { ticketPath: true, hackerId: true },
   });
 

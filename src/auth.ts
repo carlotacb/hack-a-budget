@@ -36,7 +36,6 @@ export async function authorizeCredentials(credentials: unknown) {
     email: user.email,
     name: user.name,
     image: user.image,
-    role: user.role,
   };
 }
 
@@ -49,15 +48,14 @@ type SessionCallbackParams = Parameters<
 
 export async function jwtCallback({ token, user }: JwtCallbackParams) {
   if (user) {
-    token.role = user.role;
+    token.sub = user.id;
   }
 
   if (token.sub) {
     const dbUser = await prisma.user.findUnique({
       where: { id: token.sub },
-      select: { role: true, name: true, email: true },
+      select: { name: true, email: true },
     });
-    token.role = dbUser?.role;
     token.name = dbUser?.name;
     token.email = dbUser?.email;
   }
@@ -68,15 +66,6 @@ export async function jwtCallback({ token, user }: JwtCallbackParams) {
 export function sessionCallback({ session, token }: SessionCallbackParams) {
   if (token.sub) {
     session.user.id = token.sub;
-  }
-
-  if (
-    token.role === "HACKER" ||
-    token.role === "ORGANIZER" ||
-    token.role === "DIRECTOR" ||
-    token.role === "ADMIN"
-  ) {
-    session.user.role = token.role;
   }
 
   return session;

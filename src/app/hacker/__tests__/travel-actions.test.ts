@@ -11,6 +11,10 @@ vi.mock("@/lib/travel", async (importOriginal) => {
 
 const findUniqueReimbursementMock = vi.fn();
 const findUniqueSettingsMock = vi.fn();
+const findUniqueHackathonMock = vi.fn(async () => ({
+  id: "hackathon",
+  travelReimbursementEnabled: true,
+}));
 const transactionArrayMock = vi.fn(
   async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[]),
 );
@@ -45,6 +49,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     travelStatusEvent: {
       create: (...args: unknown[]) => statusEventCreateMock(...args),
+    },
+    hackathon: {
+      findUnique: () => findUniqueHackathonMock(),
     },
     $transaction: (arg: unknown) => transactionImpl(arg),
   },

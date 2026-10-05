@@ -16,8 +16,16 @@ const profileSchema = z.object({
     .trim()
     .min(2, "Complete name must be at least 2 characters."),
   gender: z.enum(["WOMAN", "MAN", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
-  city: z.string().trim().min(2, "City must be at least 2 characters."),
-  major: z.string().trim().min(2, "Major must be at least 2 characters."),
+  diet: z.enum([
+    "OMNIVORE",
+    "VEGETARIAN",
+    "VEGAN",
+    "GLUTEN_FREE",
+    "HALAL",
+    "KOSHER",
+    "OTHER",
+  ]),
+  tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "XXL"]),
 });
 
 export async function updateProfile(

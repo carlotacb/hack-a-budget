@@ -2,7 +2,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
-vi.mock("@/app/organizer/settings/metadata/actions", () => ({
+vi.mock("@/app/organizer/settings/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 

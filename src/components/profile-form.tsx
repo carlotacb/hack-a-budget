@@ -1,6 +1,6 @@
 "use client";
 
-import type { Gender } from "@prisma/client";
+import type { Diet, Gender, TShirtSize } from "@prisma/client";
 import { useActionState, useState } from "react";
 import {
   type ProfileFormState,
@@ -15,8 +15,8 @@ type ProfileFormProps = {
     name: string | null;
     email: string;
     gender: Gender | null;
-    city: string | null;
-    major: string | null;
+    diet: Diet | null;
+    tshirtSize: TShirtSize | null;
   };
 };
 
@@ -26,8 +26,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
     initialState,
   );
   const [name, setName] = useState(user.name ?? "");
-  const [city, setCity] = useState(user.city ?? "");
-  const [major, setMajor] = useState(user.major ?? "");
 
   return (
     <form action={formAction} className="space-y-5">
@@ -77,25 +75,38 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="field">
-          <span>City</span>
-          <input
-            name="city"
-            type="text"
-            autoComplete="address-level2"
-            value={city}
-            onChange={(event) => setCity(event.target.value)}
-            required
-          />
+          <span>Diet</span>
+          <select key={user.diet} name="diet" defaultValue={user.diet ?? ""} required>
+            <option value="" disabled>
+              Select your diet
+            </option>
+            <option value="OMNIVORE">Omnivore</option>
+            <option value="VEGETARIAN">Vegetarian</option>
+            <option value="VEGAN">Vegan</option>
+            <option value="GLUTEN_FREE">Gluten-free</option>
+            <option value="HALAL">Halal</option>
+            <option value="KOSHER">Kosher</option>
+            <option value="OTHER">Other</option>
+          </select>
         </label>
         <label className="field">
-          <span>Major</span>
-          <input
-            name="major"
-            type="text"
-            value={major}
-            onChange={(event) => setMajor(event.target.value)}
+          <span>T-shirt size</span>
+          <select
+            key={user.tshirtSize}
+            name="tshirtSize"
+            defaultValue={user.tshirtSize ?? ""}
             required
-          />
+          >
+            <option value="" disabled>
+              Select your size
+            </option>
+            <option value="XS">XS</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+          </select>
         </label>
       </div>
 

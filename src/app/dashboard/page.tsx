@@ -1,13 +1,18 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getCurrentMembership } from "@/lib/current-hackathon";
 import { dashboardForRole } from "@/lib/organizer";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const current = await getCurrentMembership();
 
-  if (!session?.user?.role) {
+  if (!current) {
     redirect("/login");
   }
 
-  redirect(dashboardForRole(session.user.role));
+  if (!current.membership) {
+    // Signed in but not part of any hackathon yet.
+    redirect("/register");
+  }
+
+  redirect(dashboardForRole(current.membership.role));
 }

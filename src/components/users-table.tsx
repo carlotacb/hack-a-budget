@@ -2,9 +2,10 @@
 
 import { Info, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { DeleteUserButton } from "@/components/delete-user-button";
 import { UserRoleButton } from "@/components/user-role-button";
-import { roleLabels } from "@/lib/roles";
-import type { Gender, Role } from "@prisma/client";
+import type { RoleSettingsMap } from "@/lib/role-settings";
+import type { Diet, Gender, Role, TShirtSize } from "@prisma/client";
 
 const genderLabels: Record<Gender, string> = {
   WOMAN: "Woman",
@@ -13,22 +14,51 @@ const genderLabels: Record<Gender, string> = {
   PREFER_NOT_TO_SAY: "Prefer not to say",
 };
 
+const dietLabels: Record<Diet, string> = {
+  OMNIVORE: "Omnivore",
+  VEGETARIAN: "Vegetarian",
+  VEGAN: "Vegan",
+  GLUTEN_FREE: "Gluten-free",
+  HALAL: "Halal",
+  KOSHER: "Kosher",
+  OTHER: "Other",
+};
+
+const tshirtSizeLabels: Record<TShirtSize, string> = {
+  XS: "XS",
+  S: "S",
+  M: "M",
+  L: "L",
+  XL: "XL",
+  XXL: "XXL",
+};
+
 type OrganizerUser = {
   id: string;
   name: string | null;
   email: string;
   role: Role;
+  departmentId: string | null;
   gender: Gender | null;
-  city: string | null;
-  major: string | null;
+  diet: Diet | null;
+  tshirtSize: TShirtSize | null;
 };
+
+type Department = { id: string; name: string };
 
 type UsersTableProps = {
   users: OrganizerUser[];
   currentUserId: string;
+  roleSettings: RoleSettingsMap;
+  departments: Department[];
 };
 
-export function UsersTable({ users, currentUserId }: UsersTableProps) {
+export function UsersTable({
+  users,
+  currentUserId,
+  roleSettings,
+  departments,
+}: UsersTableProps) {
   const [query, setQuery] = useState("");
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
 
@@ -69,6 +99,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               <th className="pb-3 font-semibold">
                 <span className="sr-only">Details</span>
               </th>
+              <th className="pb-3 font-semibold">
+                <span className="sr-only">Remove</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -82,7 +115,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                     <span
                       className={`role-badge role-badge-${user.role.toLowerCase()}`}
                     >
-                      {roleLabels[user.role]}
+                      {roleSettings[user.role]?.label ?? user.role}
                     </span>
                   </div>
                 </td>
@@ -91,10 +124,13 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 </td>
                 <td className="py-4 pr-4">
                   <UserRoleButton
-                    key={`${user.id}-${user.role}`}
+                    key={`${user.id}-${user.role}-${user.departmentId}`}
                     userId={user.id}
                     currentRole={user.role}
+                    currentDepartmentId={user.departmentId}
                     isCurrentUser={user.id === currentUserId}
+                    roleSettings={roleSettings}
+                    departments={departments}
                   />
                 </td>
                 <td className="py-4 text-right">
@@ -106,6 +142,16 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   >
                     <Info size={18} aria-hidden="true" />
                   </button>
+                </td>
+                <td className="py-4 text-right">
+                  {user.id === currentUserId ? (
+                    <span className="text-xs text-slate-400">—</span>
+                  ) : (
+                    <DeleteUserButton
+                      userId={user.id}
+                      userLabel={user.name ?? user.email}
+                    />
+                  )}
                 </td>
               </tr>
             ))}
@@ -138,7 +184,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   <span
                     className={`role-badge role-badge-${detailsUser.role.toLowerCase()}`}
                   >
-                    {roleLabels[detailsUser.role]}
+                    {roleSettings[detailsUser.role]?.label ?? detailsUser.role}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
@@ -163,10 +209,19 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                     : "Not provided"
                 }
               />
-              <Detail label="City" value={detailsUser.city ?? "Not provided"} />
               <Detail
-                label="Major"
-                value={detailsUser.major ?? "Not provided"}
+                label="Diet"
+                value={
+                  detailsUser.diet ? dietLabels[detailsUser.diet] : "Not provided"
+                }
+              />
+              <Detail
+                label="T-shirt size"
+                value={
+                  detailsUser.tshirtSize
+                    ? tshirtSizeLabels[detailsUser.tshirtSize]
+                    : "Not provided"
+                }
               />
             </dl>
           </div>

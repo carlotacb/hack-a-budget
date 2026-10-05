@@ -2,7 +2,7 @@ import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
 const saveMetadataMock = vi.fn();
-vi.mock("@/app/organizer/settings/metadata/actions", () => ({
+vi.mock("@/app/organizer/settings/actions", () => ({
   saveMetadata: (...args: unknown[]) => saveMetadataMock(...args),
 }));
 
@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("MetadataForm", () => {
   test("renders create-category form with 'New name' label and Add button", () => {
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createCategory" departments={departments} />);
 
     expect(screen.getByLabelText("New name")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
@@ -38,13 +38,9 @@ describe("MetadataForm", () => {
     expect(screen.queryByLabelText("Code")).not.toBeInTheDocument();
   });
 
-  test("renders a department select for createSubcategory", () => {
+  test("renders a department select for createCategory", () => {
     render(
-      <MetadataForm
-        operation="createSubcategory"
-        categoryId="cat1"
-        departments={departments}
-      />,
+      <MetadataForm operation="createCategory" departments={departments} />,
     );
 
     expect(screen.getByLabelText("Department")).toBeInTheDocument();
@@ -55,40 +51,17 @@ describe("MetadataForm", () => {
   });
 
   test("does not render a department select for other operations", () => {
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createSubcategory" categoryId="cat1" />);
 
     expect(screen.queryByLabelText("Department")).not.toBeInTheDocument();
   });
 
-  test("submits createCategory with entered name", async () => {
+  test("submits createCategory with entered name and departmentId", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createCategory" departments={departments} />);
 
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Food" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-
-    await waitFor(() => {
-      expect(saveMetadataMock).toHaveBeenCalled();
-    });
-    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
-    expect(formData.get("operation")).toBe("createCategory");
-    expect(formData.get("name")).toBe("Food");
-  });
-
-  test("submits createSubcategory with categoryId, name, and departmentId", async () => {
-    saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(
-      <MetadataForm
-        operation="createSubcategory"
-        categoryId="cat1"
-        departments={departments}
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("New name"), {
-      target: { value: "Snacks" },
     });
     fireEvent.change(screen.getByLabelText("Department"), {
       target: { value: "dep2" },
@@ -99,10 +72,28 @@ describe("MetadataForm", () => {
       expect(saveMetadataMock).toHaveBeenCalled();
     });
     const formData = saveMetadataMock.mock.calls[0][1] as FormData;
+    expect(formData.get("operation")).toBe("createCategory");
+    expect(formData.get("name")).toBe("Food");
+    expect(formData.get("departmentId")).toBe("dep2");
+  });
+
+  test("submits createSubcategory with categoryId and name only", async () => {
+    saveMetadataMock.mockResolvedValueOnce({ success: true });
+    render(<MetadataForm operation="createSubcategory" categoryId="cat1" />);
+
+    fireEvent.change(screen.getByLabelText("New name"), {
+      target: { value: "Snacks" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(saveMetadataMock).toHaveBeenCalled();
+    });
+    const formData = saveMetadataMock.mock.calls[0][1] as FormData;
     expect(formData.get("operation")).toBe("createSubcategory");
     expect(formData.get("categoryId")).toBe("cat1");
     expect(formData.get("name")).toBe("Snacks");
-    expect(formData.get("departmentId")).toBe("dep2");
+    expect(formData.get("departmentId")).toBeNull();
   });
 
   test("submits createDepartment with just the name", async () => {
@@ -130,10 +121,13 @@ describe("MetadataForm", () => {
         resolveSave = resolve;
       }),
     );
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createCategory" departments={departments} />);
 
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Food" },
+    });
+    fireEvent.change(screen.getByLabelText("Department"), {
+      target: { value: "dep1" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
@@ -149,10 +143,13 @@ describe("MetadataForm", () => {
 
   test("shows an error message returned from the action", async () => {
     saveMetadataMock.mockResolvedValueOnce({ error: "Name already exists." });
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createCategory" departments={departments} />);
 
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Food" },
+    });
+    fireEvent.change(screen.getByLabelText("Department"), {
+      target: { value: "dep1" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
@@ -163,10 +160,13 @@ describe("MetadataForm", () => {
 
   test("shows a success message returned from the action", async () => {
     saveMetadataMock.mockResolvedValueOnce({ success: true });
-    render(<MetadataForm operation="createCategory" />);
+    render(<MetadataForm operation="createCategory" departments={departments} />);
 
     fireEvent.change(screen.getByLabelText("New name"), {
       target: { value: "Food" },
+    });
+    fireEvent.change(screen.getByLabelText("Department"), {
+      target: { value: "dep1" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 

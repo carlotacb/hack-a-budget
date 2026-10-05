@@ -114,15 +114,14 @@ export default function Home() {
               budgets and travel reimbursements, in a workspace shaped around
               the role you choose.
             </p>
-            <div className="mt-9">
-              <button
-                type="button"
-                disabled
-                className="primary-button !cursor-not-allowed !opacity-60"
-              >
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link href="/register" className="primary-button">
                 <Clock size={18} aria-hidden="true" />
-                Working on having workspaces
-              </button>
+                Register a hackathon
+              </Link>
+              <Link href="/login" className="secondary-button">
+                Sign in
+              </Link>
             </div>
           </section>
 
@@ -238,19 +237,14 @@ export default function Home() {
               Ready to run your event&apos;s budget?
             </h2>
             <p className="mt-2 text-slate-600">
-              Workspaces are on their way. Sign in if you&apos;re already part of
-              one.
+              Register a new hackathon, or sign in to your existing workspace.
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              disabled
-              className="primary-button !cursor-not-allowed !opacity-60"
-            >
+            <Link href="/register" className="primary-button">
               <Clock size={18} aria-hidden="true" />
-              Working on having workspaces
-            </button>
+              Register a hackathon
+            </Link>
             <Link href="/login" className="secondary-button">
               Sign in
             </Link>
