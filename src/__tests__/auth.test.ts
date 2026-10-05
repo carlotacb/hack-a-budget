@@ -89,7 +89,6 @@ describe("authorizeCredentials", () => {
       email: "user@example.com",
       name: "Jane Doe",
       image: "avatar.png",
-      role: "HACKER",
       passwordHash: "hashed",
     });
     compareMock.mockResolvedValueOnce(true);
@@ -108,15 +107,13 @@ describe("authorizeCredentials", () => {
       email: "user@example.com",
       name: "Jane Doe",
       image: "avatar.png",
-      role: "HACKER",
     });
   });
 });
 
 describe("jwtCallback", () => {
-  test("sets token.role from user on sign-in, then overwrites from db lookup", async () => {
+  test("sets the user id and refreshes name/email from the database", async () => {
     findUniqueMock.mockResolvedValueOnce({
-      role: "ORGANIZER",
       name: "DB Name",
       email: "db@example.com",
     });
@@ -124,28 +121,23 @@ describe("jwtCallback", () => {
     const token = { sub: "user-1" } as Record<string, unknown>;
     const result = await jwtCallback({
       token,
-      user: { role: "HACKER" },
+      user: { id: "user-1" },
     } as any);
 
     expect(findUniqueMock).toHaveBeenCalledWith({
       where: { id: "user-1" },
-      select: { role: true, name: true, email: true },
+      select: { name: true, email: true },
     });
-    expect(result.role).toBe("ORGANIZER");
     expect(result.name).toBe("DB Name");
     expect(result.email).toBe("db@example.com");
   });
 
-  test("sets undefined role/name/email when token.sub exists but dbUser lookup returns null", async () => {
+  test("sets undefined name/email when token.sub exists but dbUser lookup returns null", async () => {
     findUniqueMock.mockResolvedValueOnce(null);
 
-    const token = { sub: "user-1", role: "HACKER" } as Record<
-      string,
-      unknown
-    >;
+    const token = { sub: "user-1" } as Record<string, unknown>;
     const result = await jwtCallback({ token, user: undefined } as any);
 
-    expect(result.role).toBeUndefined();
     expect(result.name).toBeUndefined();
     expect(result.email).toBeUndefined();
   });
@@ -181,36 +173,13 @@ describe("sessionCallback", () => {
     expect(result.user.id).toBeUndefined();
   });
 
-  test.each(["HACKER", "ORGANIZER", "DIRECTOR", "ADMIN"])(
-    "copies valid role %s onto session.user.role",
-    (role) => {
-      const session = makeSession();
-      const result = sessionCallback({
-        session,
-        token: { sub: "user-1", role },
-      } as any);
-
-      expect(result.user.role).toBe(role);
-    },
-  );
-
-  test("leaves session.user.role unset for an unknown role", () => {
+  test("does not copy a global role from the token to the session", () => {
     const session = makeSession();
     const result = sessionCallback({
       session,
-      token: { sub: "user-1", role: "SOMETHING_ELSE" },
+      token: { sub: "user-1", role: "ADMIN" },
     } as any);
 
-    expect(result.user.role).toBeUndefined();
-  });
-
-  test("leaves session.user.role unset when token.role is undefined", () => {
-    const session = makeSession();
-    const result = sessionCallback({
-      session,
-      token: { sub: "user-1" },
-    } as any);
-
-    expect(result.user.role).toBeUndefined();
+    expect("role" in result.user).toBe(false);
   });
 });

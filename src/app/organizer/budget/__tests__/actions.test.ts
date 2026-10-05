@@ -1,9 +1,9 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
-const authMock = vi.fn();
-vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
-
-const userFindUniqueMock = vi.fn();
+const getOrganizerIdMock = vi.fn();
+vi.mock("@/lib/organizer", () => ({
+  getOrganizerId: (...args: unknown[]) => getOrganizerIdMock(...args),
+}));
 const budgetFindUniqueMock = vi.fn();
 const budgetFindFirstMock = vi.fn();
 const budgetCreateMock = vi.fn();
@@ -11,10 +11,12 @@ const budgetUpdateMock = vi.fn();
 const budgetUpdateManyMock = vi.fn();
 const budgetDeleteMock = vi.fn();
 const categoryFindManyMock = vi.fn();
+const categoryFindFirstMock = vi.fn();
 const categoryFindUniqueMock = vi.fn();
 const categoryCreateMock = vi.fn();
 const categoryUpdateMock = vi.fn();
 const subcategoryUpdateMock = vi.fn();
+const departmentUpsertMock = vi.fn();
 const budgetCategoryFindManyMock = vi.fn();
 const budgetCategoryFindFirstMock = vi.fn();
 const budgetCategoryFindUniqueMock = vi.fn();
@@ -35,9 +37,13 @@ const tx = {
   },
   category: {
     findMany: (...args: unknown[]) => categoryFindManyMock(...args),
+    findFirst: (...args: unknown[]) => categoryFindFirstMock(...args),
     findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args),
     create: (...args: unknown[]) => categoryCreateMock(...args),
     update: (...args: unknown[]) => categoryUpdateMock(...args),
+  },
+  department: {
+    upsert: (...args: unknown[]) => departmentUpsertMock(...args),
   },
   subcategory: {
     update: (...args: unknown[]) => subcategoryUpdateMock(...args),
@@ -67,7 +73,6 @@ const transactionMock = vi.fn(async (arg: unknown) => {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique: (...args: unknown[]) => userFindUniqueMock(...args) },
     ...tx,
     $transaction: (...args: unknown[]) => transactionMock(args[0]),
   },
@@ -92,17 +97,26 @@ function formData(fields: Record<string, string>) {
 }
 
 function signInAs(role: string) {
-  authMock.mockResolvedValueOnce({ user: { id: "u1" } });
-  userFindUniqueMock.mockResolvedValueOnce({ role });
+  getOrganizerIdMock.mockImplementationOnce((allowedRoles: string[]) =>
+    allowedRoles.includes(role)
+      ? { userId: "u1", hackathonId: "hackathon1" }
+      : null,
+  );
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  transactionMock.mockImplementation(async (arg: unknown) => {
+    if (typeof arg === "function") {
+      return (arg as (client: TxClient) => unknown)(tx);
+    }
+    return Promise.all(arg as Promise<unknown>[]);
+  });
 });
 
 describe("manageBudgets", () => {
   test("errors when not signed in", async () => {
-    authMock.mockResolvedValueOnce(null);
+    getOrganizerIdMock.mockResolvedValueOnce(null);
 
     const result = await manageBudgets(
       {},
@@ -129,7 +143,8 @@ describe("manageBudgets", () => {
 
   test("creates a budget from scratch with an unexpected-expenses category", async () => {
     signInAs("ADMIN");
-    categoryFindUniqueMock.mockResolvedValueOnce(null);
+    categoryFindFirstMock.mockResolvedValueOnce(null);
+    departmentUpsertMock.mockResolvedValueOnce({ id: "department-general" });
     categoryCreateMock.mockResolvedValueOnce({
       id: "cat-unexpected",
       name: "Unexpected expenses",
@@ -149,10 +164,16 @@ describe("manageBudgets", () => {
     );
 
     expect(categoryCreateMock).toHaveBeenCalledWith({
-      data: { name: "Unexpected expenses", budgetCents: 0 },
+      data: {
+        hackathonId: "hackathon1",
+        name: "Unexpected expenses",
+        budgetCents: 0,
+        departmentId: "department-general",
+      },
     });
     expect(budgetCreateMock).toHaveBeenCalledWith({
       data: {
+        hackathonId: "hackathon1",
         name: "2026 draft",
         basedOnId: null,
         categories: {
@@ -211,6 +232,11 @@ describe("manageBudgets", () => {
 
   test("duplicates amounts from a source budget", async () => {
     signInAs("ADMIN");
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget-src" });
+    categoryFindFirstMock.mockResolvedValueOnce({
+      id: "cat-unexpected",
+      name: "Unexpected expenses",
+    });
     categoryFindUniqueMock.mockResolvedValueOnce({
       id: "cat-unexpected",
       name: "Unexpected expenses",
@@ -249,6 +275,7 @@ describe("manageBudgets", () => {
 
     expect(budgetCreateMock).toHaveBeenCalledWith({
       data: {
+        hackathonId: "hackathon1",
         name: "Reviewed",
         basedOnId: "budget-src",
         categories: {
@@ -277,6 +304,7 @@ describe("manageBudgets", () => {
 
   test("activates a budget and syncs its amounts to the live categories", async () => {
     signInAs("DIRECTOR");
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1", isActive: false });
     budgetCategoryFindManyMock.mockResolvedValueOnce([
       {
         categoryId: "cat1",
@@ -291,7 +319,7 @@ describe("manageBudgets", () => {
     );
 
     expect(budgetUpdateManyMock).toHaveBeenCalledWith({
-      where: { isActive: true },
+      where: { hackathonId: "hackathon1", isActive: true },
       data: { isActive: false },
     });
     expect(budgetUpdateMock).toHaveBeenCalledWith({
@@ -311,7 +339,7 @@ describe("manageBudgets", () => {
 
   test("refuses to delete the active budget", async () => {
     signInAs("ADMIN");
-    budgetFindUniqueMock.mockResolvedValueOnce({ id: "budget1", isActive: true });
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1", isActive: true });
 
     const result = await manageBudgets(
       {},
@@ -326,7 +354,7 @@ describe("manageBudgets", () => {
 
   test("deletes an inactive budget", async () => {
     signInAs("ADMIN");
-    budgetFindUniqueMock.mockResolvedValueOnce({ id: "budget1", isActive: false });
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1", isActive: false });
 
     const result = await manageBudgets(
       {},
@@ -363,7 +391,7 @@ describe("updateBudgetAmounts", () => {
 
   test("updates subcategories and recomputes the parent category total", async () => {
     signInAs("ADMIN");
-    budgetFindUniqueMock.mockResolvedValueOnce({ id: "budget1", isActive: false });
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1", isActive: false });
     budgetCategoryFindManyMock.mockResolvedValueOnce([
       {
         id: "budgetcat1",
@@ -397,7 +425,7 @@ describe("updateBudgetAmounts", () => {
 
   test("syncs live categories when editing the active budget", async () => {
     signInAs("ADMIN");
-    budgetFindUniqueMock.mockResolvedValueOnce({ id: "budget1", isActive: true });
+    budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1", isActive: true });
     budgetCategoryFindManyMock.mockResolvedValue([
       {
         id: "budgetcat-unexpected",
@@ -428,7 +456,7 @@ describe("syncNewCategoryToActiveBudget", () => {
   test("does nothing when there is no active budget", async () => {
     budgetFindFirstMock.mockResolvedValueOnce(null);
 
-    await syncNewCategoryToActiveBudget("cat1", "Food");
+    await syncNewCategoryToActiveBudget("hackathon1", "cat1", "Food");
 
     expect(budgetCategoryCreateMock).not.toHaveBeenCalled();
   });
@@ -437,7 +465,7 @@ describe("syncNewCategoryToActiveBudget", () => {
     budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
     budgetCategoryFindFirstMock.mockResolvedValueOnce({ id: "bc1" });
 
-    await syncNewCategoryToActiveBudget("cat1", "Food");
+    await syncNewCategoryToActiveBudget("hackathon1", "cat1", "Food");
 
     expect(budgetCategoryCreateMock).not.toHaveBeenCalled();
   });
@@ -446,7 +474,7 @@ describe("syncNewCategoryToActiveBudget", () => {
     budgetFindFirstMock.mockResolvedValueOnce({ id: "budget1" });
     budgetCategoryFindFirstMock.mockResolvedValueOnce(null);
 
-    await syncNewCategoryToActiveBudget("cat1", "Food");
+    await syncNewCategoryToActiveBudget("hackathon1", "cat1", "Food");
 
     expect(budgetCategoryCreateMock).toHaveBeenCalledWith({
       data: {
@@ -464,7 +492,12 @@ describe("syncNewSubcategoryToActiveBudget", () => {
   test("does nothing when there is no active budget", async () => {
     budgetFindFirstMock.mockResolvedValueOnce(null);
 
-    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+    await syncNewSubcategoryToActiveBudget(
+      "hackathon1",
+      "sub1",
+      "cat1",
+      "Snacks",
+    );
 
     expect(transactionMock).not.toHaveBeenCalled();
   });
@@ -480,7 +513,12 @@ describe("syncNewSubcategoryToActiveBudget", () => {
     });
     budgetCategoryFindManyMock.mockResolvedValueOnce([]);
 
-    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+    await syncNewSubcategoryToActiveBudget(
+      "hackathon1",
+      "sub1",
+      "cat1",
+      "Snacks",
+    );
 
     expect(budgetSubcategoryCreateMock).toHaveBeenCalledWith({
       data: {
@@ -508,7 +546,12 @@ describe("syncNewSubcategoryToActiveBudget", () => {
     });
     budgetCategoryFindManyMock.mockResolvedValueOnce([]);
 
-    await syncNewSubcategoryToActiveBudget("sub1", "cat1", "Snacks");
+    await syncNewSubcategoryToActiveBudget(
+      "hackathon1",
+      "sub1",
+      "cat1",
+      "Snacks",
+    );
 
     expect(budgetCategoryCreateMock).toHaveBeenCalledWith({
       data: {
